@@ -12,6 +12,7 @@ from discord.ext import tasks
 
 SECRET = "tB87#kPtkxqOS2"
 
+
 class IDChannel(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -19,9 +20,9 @@ class IDChannel(commands.Cog):
         self.log_directory = 'log'
         if not os.path.exists(self.log_directory):
             os.makedirs(self.log_directory)
-            
+
         self.message_listeners = {}
-            
+
         self.level_mapping = {
             31: "30-1", 32: "30-2", 33: "30-3", 34: "30-4",
             35: "FC 1", 36: "FC 1 - 1", 37: "FC 1 - 2", 38: "FC 1 - 3", 39: "FC 1 - 4",
@@ -39,7 +40,7 @@ class IDChannel(commands.Cog):
     def setup_database(self):
         if not os.path.exists('db'):
             os.makedirs('db')
-            
+
         conn = sqlite3.connect('db/id_channel.sqlite')
         c = conn.cursor()
         c.execute('''CREATE TABLE IF NOT EXISTS id_channels
@@ -55,34 +56,47 @@ class IDChannel(commands.Cog):
     async def log_action(self, action_type: str, user_id: int, guild_id: int, details: dict):
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         log_file_path = os.path.join(self.log_directory, 'id_channel_log.txt')
-        
+
         guild = self.bot.get_guild(guild_id)
         guild_name = guild.name if guild else "Unknown Server"
-        
+
         user_name = "Unknown User"
         if guild:
             member = guild.get_member(user_id)
             if member:
                 user_name = f"{member.name}#{member.discriminator}" if member.discriminator != '0' else member.name
-        
-        if user_name == "Unknown User":
+
+        '''if user_name == "Unknown User":
             try:
                 user = self.bot.get_user(user_id)
                 if user:
                     user_name = f"{user.name}#{user.discriminator}" if user.discriminator != '0' else user.name
             except:
-                pass
-        
+                pass'''
+
         if user_name == "Unknown User":
+            try:
+                user = self.bot.get_user(user_id)
+
+                if not user:
+                    user = self.bot.fetch_user(user_id)
+
+                user_name = f"{user.name}#{user.discriminator}" if user.discriminator != '0' else user.name
+
+            except:
+                user_name = "Cannot find user."
+                pass
+
+        '''if user_name == "Unknown User":
             try:
                 user = await self.bot.fetch_user(user_id)
                 if user:
                     user_name = f"{user.name}#{user.discriminator}" if user.discriminator != '0' else user.name
             except:
-                pass
-        
+                pass'''
+
         with open(log_file_path, 'a', encoding='utf-8') as log_file:
-            log_file.write(f"\n{'='*50}\n")
+            log_file.write(f"\n{'=' * 50}\n")
             log_file.write(f"Timestamp: {timestamp}\n")
             log_file.write(f"Action: {action_type}\n")
             log_file.write(f"User: {user_name} (ID: {user_id})\n")
@@ -90,7 +104,7 @@ class IDChannel(commands.Cog):
             log_file.write("Details:\n")
             for key, value in details.items():
                 log_file.write(f"  {key}: {value}\n")
-            log_file.write(f"{'='*50}\n")
+            log_file.write(f"{'=' * 50}\n")
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -161,7 +175,7 @@ class IDChannel(commands.Cog):
                 cursor = db.cursor()
                 cursor.execute("SELECT alliance_id FROM id_channels WHERE channel_id = ?", (message.channel.id,))
                 channel_info = cursor.fetchone()
-            
+
             if not channel_info:
                 return
 
@@ -184,18 +198,20 @@ class IDChannel(commands.Cog):
                 cursor = users_db.cursor()
                 cursor.execute("SELECT alliance FROM users WHERE fid = ?", (fid,))
                 existing_alliance = cursor.fetchone()
-                
+
                 if existing_alliance:
                     if existing_alliance[0] == alliance_id:
                         await message.add_reaction('⚠️')
-                        await message.reply(f"This FID ({fid}) is already registered in this alliance!", delete_after=10)
+                        await message.reply(f"This FID ({fid}) is already registered in this alliance!",
+                                            delete_after=10)
                         return
                     else:
                         with sqlite3.connect('db/alliance.sqlite') as alliance_db:
                             alliance_cursor = alliance_db.cursor()
-                            alliance_cursor.execute("SELECT name FROM alliance_list WHERE alliance_id = ?", (existing_alliance[0],))
+                            alliance_cursor.execute("SELECT name FROM alliance_list WHERE alliance_id = ?",
+                                                    (existing_alliance[0],))
                             alliance_name = alliance_cursor.fetchone()
-                        
+
                         await message.add_reaction('⚠️')
                         await message.reply(
                             f"This FID ({fid}) is already registered in another alliance: `{alliance_name[0] if alliance_name else 'Unknown Alliance'}`",
@@ -219,99 +235,105 @@ class IDChannel(commands.Cog):
                     ssl_context.verify_mode = ssl.CERT_NONE
 
                     async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=ssl_context)) as session:
-                        async with session.post('https://wos-giftcode-api.centurygame.com/api/player', headers=headers, data=form) as response:
-                            if response.status == 429:
-                                if attempt < max_retries - 1:
-                                    warning_embed = discord.Embed(
-                                        title="⚠️ API Rate Limit Reached",
-                                        description=(
-                                            f"Operation is on hold due to API rate limit.\n"
-                                            f"**Remaining Attempts:** `{max_retries - attempt - 1}`\n"
-                                            f"**Wait Time:** `60 seconds`\n\n"
-                                            f"Operation will continue automatically, please wait..."
-                                        ),
-                                        color=discord.Color.orange()
-                                    )
-                                    await message.reply(embed=warning_embed)
-                                    await asyncio.sleep(retry_delay)
-                                    continue
-                                else:
-                                    await message.add_reaction('❌')
-                                    await message.reply("Operation failed due to API rate limit. Please try again later.", delete_after=10)
-                                    return
-
-                            if response.status == 200:
-                                data = await response.json()
-
-                                if data.get('data'):
-                                    nickname = data['data'].get('nickname')
-                                    furnace_lv = data['data'].get('stove_lv', 0)
-                                    stove_lv_content = data['data'].get('stove_lv_content', None)
-                                    kid = data['data'].get('kid', None)
-                                    avatar_image = data['data'].get('avatar_image', None)
-
-                                    try:
-                                        with sqlite3.connect('db/users.sqlite') as users_db:
-                                            cursor = users_db.cursor()
-                                            cursor.execute("SELECT alliance FROM users WHERE fid = ?", (fid,))
-                                            if cursor.fetchone():
-                                                await message.add_reaction('⚠️')
-                                                await message.reply(f"This FID ({fid}) was added by another process!", delete_after=10)
-                                                return
-                                                
-                                            cursor.execute("""
-                                                INSERT INTO users (fid, nickname, furnace_lv, kid, stove_lv_content, alliance)
-                                                VALUES (?, ?, ?, ?, ?, ?)
-                                            """, (fid, nickname, furnace_lv, kid, stove_lv_content, alliance_id))
-                                            users_db.commit()
-                                    except sqlite3.IntegrityError:
-                                        await message.add_reaction('⚠️')
-                                        await message.reply(f"This FID ({fid}) was added by another process!", delete_after=10)
+                        async with session.post('https://wos-giftcode-api.centurygame.com/api/player', headers=headers,
+                                                data=form) as response:
+                            match response.status:
+                                case 429:
+                                    if attempt < max_retries - 1:
+                                        warning_embed = discord.Embed(
+                                            title="⚠️ API Rate Limit Reached",
+                                            description=(
+                                                f"Operation is on hold due to API rate limit.\n"
+                                                f"**Remaining Attempts:** `{max_retries - attempt - 1}`\n"
+                                                f"**Wait Time:** `60 seconds`\n\n"
+                                                f"Operation will continue automatically, please wait..."
+                                            ),
+                                            color=discord.Color.orange()
+                                        )
+                                        await message.reply(embed=warning_embed)
+                                        await asyncio.sleep(retry_delay)
+                                        continue
+                                    else:
+                                        await message.add_reaction('❌')
+                                        await message.reply(
+                                            "Operation failed due to API rate limit. Please try again later.",
+                                            delete_after=10)
                                         return
 
-                                    await message.add_reaction('✅')
+                                case 200:
+                                    data = await response.json()
 
-                                    if furnace_lv > 30:
-                                        furnace_level_name = self.level_mapping.get(furnace_lv, f"Level {furnace_lv}")
+                                    if data.get('data'):
+                                        nickname = data['data'].get('nickname')
+                                        furnace_lv = data['data'].get('stove_lv', 0)
+                                        stove_lv_content = data['data'].get('stove_lv_content', None)
+                                        kid = data['data'].get('kid', None)
+                                        avatar_image = data['data'].get('avatar_image', None)
+
+                                        try:
+                                            with sqlite3.connect('db/users.sqlite') as users_db:
+                                                cursor = users_db.cursor()
+                                                cursor.execute("SELECT alliance FROM users WHERE fid = ?", (fid,))
+                                                if cursor.fetchone():
+                                                    await message.add_reaction('⚠️')
+                                                    await message.reply(f"This FID ({fid}) was added by another process!",
+                                                                        delete_after=10)
+                                                    return
+
+                                                cursor.execute("""
+                                                    INSERT INTO users (fid, nickname, furnace_lv, kid, stove_lv_content, alliance)
+                                                    VALUES (?, ?, ?, ?, ?, ?)
+                                                """, (fid, nickname, furnace_lv, kid, stove_lv_content, alliance_id))
+                                                users_db.commit()
+                                        except sqlite3.IntegrityError:
+                                            await message.add_reaction('⚠️')
+                                            await message.reply(f"This FID ({fid}) was added by another process!",
+                                                                delete_after=10)
+                                            return
+
+                                        await message.add_reaction('✅')
+
+                                        if furnace_lv > 30:
+                                            furnace_level_name = self.level_mapping.get(furnace_lv, f"Level {furnace_lv}")
+                                        else:
+                                            furnace_level_name = f"Level {furnace_lv}"
+
+                                        success_embed = discord.Embed(
+                                            title=f"✅ Member Successfully Added",
+                                            description=(
+                                                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                                                f"**👤 Name:** `{nickname}`\n"
+                                                f"**🆔 FID:** `{fid}`\n"
+                                                f"**🔥 Furnace Level:** `{furnace_level_name}`\n"
+                                                f"**🌍 State:** `{kid}`\n"
+                                                "━━━━━━━━━━━━━━━━━━━━━━"
+                                            ),
+                                            color=discord.Color.green()
+                                        )
+
+                                        if avatar_image:
+                                            success_embed.set_image(url=avatar_image)
+                                        if isinstance(stove_lv_content, str) and stove_lv_content.startswith("http"):
+                                            success_embed.set_thumbnail(url=stove_lv_content)
+
+                                        await message.reply(embed=success_embed)
+
+                                        await self.log_action(
+                                            "ADD_MEMBER",
+                                            message.author.id,
+                                            message.guild.id,
+                                            {
+                                                "fid": fid,
+                                                "nickname": nickname,
+                                                "alliance_id": alliance_id,
+                                                "furnace_level": furnace_level_name
+                                            }
+                                        )
+                                        return
                                     else:
-                                        furnace_level_name = f"Level {furnace_lv}"
-
-                                    success_embed = discord.Embed(
-                                        title=f"✅ Member Successfully Added",
-                                        description=(
-                                            "━━━━━━━━━━━━━━━━━━━━━━\n"
-                                            f"**👤 Name:** `{nickname}`\n"
-                                            f"**🆔 FID:** `{fid}`\n"
-                                            f"**🔥 Furnace Level:** `{furnace_level_name}`\n"
-                                            f"**🌍 State:** `{kid}`\n"
-                                            "━━━━━━━━━━━━━━━━━━━━━━"
-                                        ),
-                                        color=discord.Color.green()
-                                    )
-
-                                    if avatar_image:
-                                        success_embed.set_image(url=avatar_image)
-                                    if isinstance(stove_lv_content, str) and stove_lv_content.startswith("http"):
-                                        success_embed.set_thumbnail(url=stove_lv_content)
-
-                                    await message.reply(embed=success_embed)
-
-                                    await self.log_action(
-                                        "ADD_MEMBER",
-                                        message.author.id,
-                                        message.guild.id,
-                                        {
-                                            "fid": fid,
-                                            "nickname": nickname,
-                                            "alliance_id": alliance_id,
-                                            "furnace_level": furnace_level_name
-                                        }
-                                    )
-                                    return
-                                else:
-                                    await message.add_reaction('❌')
-                                    await message.reply("No player found for this FID!", delete_after=10)
-                                    return
+                                        await message.add_reaction('❌')
+                                        await message.reply("No player found for this FID!", delete_after=10)
+                                        return
 
                 except Exception as e:
                     if attempt < max_retries - 1:
@@ -334,6 +356,7 @@ class IDChannel(commands.Cog):
                 channels = cursor.fetchall()
 
             current_time = datetime.utcnow()
+            # current_time = dt.now(datetime.UTC)
             five_minutes_ago = current_time.timestamp() - 300
 
             for channel_id, alliance_id in channels:
@@ -352,7 +375,7 @@ class IDChannel(commands.Cog):
                                     break
                             if has_bot_reaction:
                                 break
-                        
+
                         if not has_bot_reaction:
                             messages_to_check.append(message)
                     else:
@@ -388,7 +411,7 @@ class IDChannel(commands.Cog):
 
             if not is_admin:
                 await interaction.response.send_message(
-                    "❌ You don't have permission to use this feature.", 
+                    "❌ You don't have permission to use this feature.",
                     ephemeral=True
                 )
                 return
@@ -406,14 +429,14 @@ class IDChannel(commands.Cog):
                 ),
                 color=discord.Color.blue()
             )
-            
+
             view = IDChannelView(self)
-            
+
             try:
                 await interaction.response.edit_message(embed=embed, view=view)
             except discord.InteractionResponded:
                 pass
-                
+
         except Exception as e:
             if not interaction.response.is_done():
                 await interaction.response.send_message(
@@ -430,6 +453,7 @@ class IDChannel(commands.Cog):
         if channel_id in self.message_listeners:
             self.bot.remove_listener(self.message_listeners[channel_id])
             del self.message_listeners[channel_id]
+
 
 class IDChannelView(discord.ui.View):
     def __init__(self, cog):
@@ -488,7 +512,7 @@ class IDChannelView(discord.ui.View):
                             pass
 
                     creator_text = creator.mention if creator else f"Unknown (ID: {created_by})"
-                    
+
                     embed.add_field(
                         name=f"#{channel.name}",
                         value=f"**Alliance:** {alliance_name}\n"
@@ -517,7 +541,8 @@ class IDChannelView(discord.ui.View):
             channels = []
             with sqlite3.connect('db/id_channel.sqlite') as db:
                 cursor = db.cursor()
-                cursor.execute("SELECT channel_id, alliance_id FROM id_channels WHERE guild_id = ?", (interaction.guild_id,))
+                cursor.execute("SELECT channel_id, alliance_id FROM id_channels WHERE guild_id = ?",
+                               (interaction.guild_id,))
                 id_channels = cursor.fetchall()
 
             with sqlite3.connect('db/alliance.sqlite') as alliance_db:
@@ -558,7 +583,7 @@ class IDChannelView(discord.ui.View):
                 async def callback(self, select_interaction: discord.Interaction):
                     try:
                         channel_id = int(self.values[0])
-                        
+
                         await self.view.cog.stop_channel_listener(channel_id)
 
                         with sqlite3.connect('db/id_channel.sqlite') as db:
@@ -567,7 +592,7 @@ class IDChannelView(discord.ui.View):
                             db.commit()
 
                         channel = select_interaction.guild.get_channel(channel_id)
-                        
+
                         await self.view.cog.log_action(
                             "DELETE_CHANNEL",
                             select_interaction.user.id,
@@ -581,15 +606,15 @@ class IDChannelView(discord.ui.View):
                         success_embed = discord.Embed(
                             title="✅ ID Channel Deleted",
                             description=f"**Channel:** {channel.mention if channel else 'Deleted Channel'}\n\n"
-                                      f"This channel will no longer be used as an ID channel.",
+                                        f"This channel will no longer be used as an ID channel.",
                             color=discord.Color.green()
                         )
-                        
+
                         if not select_interaction.response.is_done():
                             await select_interaction.response.edit_message(embed=success_embed, view=None)
                         else:
                             await select_interaction.message.edit(embed=success_embed, view=None)
-                            
+
                     except Exception as e:
                         error_embed = discord.Embed(
                             title="❌ Error",
@@ -604,13 +629,13 @@ class IDChannelView(discord.ui.View):
             view = discord.ui.View()
             view.cog = self.cog
             view.add_item(ChannelSelect())
-            
+
             select_embed = discord.Embed(
                 title="🗑️ Delete ID Channel",
                 description="Select the ID channel you want to delete:",
                 color=discord.Color.red()
             )
-            
+
             await interaction.response.send_message(
                 embed=select_embed,
                 view=view,
@@ -639,7 +664,7 @@ class IDChannelView(discord.ui.View):
 
             if not alliances:
                 await interaction.response.send_message(
-                    "❌ No alliances found.", 
+                    "❌ No alliances found.",
                     ephemeral=True
                 )
                 return
@@ -662,7 +687,7 @@ class IDChannelView(discord.ui.View):
 
                 async def callback(self, select_interaction: discord.Interaction):
                     alliance_id = int(self.values[0])
-                    
+
                     class ChannelSelect(discord.ui.ChannelSelect):
                         def __init__(self):
                             super().__init__(
@@ -672,7 +697,7 @@ class IDChannelView(discord.ui.View):
 
                         async def callback(self, channel_interaction: discord.Interaction):
                             selected_channel = self.values[0]
-                            
+
                             try:
                                 with sqlite3.connect('db/id_channel.sqlite') as db:
                                     cursor = db.cursor()
@@ -705,8 +730,8 @@ class IDChannelView(discord.ui.View):
                                 success_embed = discord.Embed(
                                     title="✅ ID Channel Created",
                                     description=f"**Channel:** {selected_channel.mention}\n"
-                                              f"**Alliance:** {dict(alliances)[alliance_id]}\n\n"
-                                              f"This channel will now automatically check and add FIDs to the alliance.",
+                                                f"**Alliance:** {dict(alliances)[alliance_id]}\n\n"
+                                                f"This channel will now automatically check and add FIDs to the alliance.",
                                     color=discord.Color.green()
                                 )
                                 await channel_interaction.response.edit_message(embed=success_embed, view=None)
@@ -729,7 +754,7 @@ class IDChannelView(discord.ui.View):
                     channel_view = discord.ui.View()
                     channel_view.cog = self.view.cog
                     channel_view.add_item(ChannelSelect())
-                    
+
                     select_embed = discord.Embed(
                         title="🔧 ID Channel Setup",
                         description="Select a channel to use as ID channel:",
@@ -740,7 +765,7 @@ class IDChannelView(discord.ui.View):
             alliance_view = discord.ui.View()
             alliance_view.cog = self.cog
             alliance_view.add_item(AllianceSelect())
-            
+
             initial_embed = discord.Embed(
                 title="🔧 ID Channel Setup",
                 description="Select an alliance for the ID channel:",
@@ -781,5 +806,6 @@ class IDChannelView(discord.ui.View):
                 ephemeral=True
             )
 
+
 async def setup(bot):
-    await bot.add_cog(IDChannel(bot)) 
+    await bot.add_cog(IDChannel(bot))

@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 
+
 class SupportOperations(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -22,7 +23,7 @@ class SupportOperations(commands.Cog):
         )
 
         view = SupportView(self)
-        
+
         try:
             await interaction.response.edit_message(embed=support_menu_embed, view=view)
         except discord.errors.InteractionResponded:
@@ -34,13 +35,13 @@ class SupportOperations(commands.Cog):
             description=(
                 "Hello! If you need help with the bot or are experiencing any issues, "
                 "you can always contact me.\n\n"
-                "**Discord Server:** [Click Here](https://discord.gg/h8w6N6my4a)\n"
-                "**Developer Contact:** Discord Username: Reloisback\n\n"
+                # "**Discord Server:** [Click Here](https://discord.gg/h8w6N6my4a)\n"
+                "**Developer Contact:** Discord Username: spiritingauto04\n\n"
                 "Our bot's source code is always 100% open source. "
                 "This bot was created and published by Reloisback for free and "
-                "**WILL ALWAYS BE FREE.**\n\n"
+                "modified by SpiritingAuto04\n\n"
                 "If you would like to support us\n"
-                "[☕ Buy me a coffee](https://www.buymeacoffee.com/reloisback)\n\n"
+                "[☕ Buy me a coffee](https://ko-fi.com/spiritingauto)\n\n"
                 "You can always support by clicking this link.\n"
                 "Thank you for using my bot.\n"
                 "Feel free to contact me anytime for support."
@@ -49,7 +50,7 @@ class SupportOperations(commands.Cog):
         )
 
         support_embed.set_thumbnail(url="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png")
-        
+
         try:
             await interaction.response.send_message(embed=support_embed, ephemeral=True)
             try:
@@ -61,6 +62,7 @@ class SupportOperations(commands.Cog):
                 )
         except Exception as e:
             print(f"Error sending support info: {e}")
+
 
 class SupportView(discord.ui.View):
     def __init__(self, cog):
@@ -76,7 +78,7 @@ class SupportView(discord.ui.View):
     async def support_request_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.cog.show_support_info(interaction)
 
-    @discord.ui.button(
+    '''@discord.ui.button(
         label="Developer About",
         emoji="👨‍💻",
         style=discord.ButtonStyle.primary,
@@ -124,7 +126,7 @@ class SupportView(discord.ui.View):
         )
 
         about_embed.set_footer(text="Made with ❤️ by Reloisback")
-        
+
         try:
             await interaction.response.send_message(embed=about_embed, ephemeral=True)
             try:
@@ -135,7 +137,7 @@ class SupportView(discord.ui.View):
                     ephemeral=True
                 )
         except Exception as e:
-            print(f"Error sending developer info: {e}")
+            print(f"Error sending developer info: {e}")'''
 
     @discord.ui.button(
         label="Main Menu",
@@ -153,5 +155,6 @@ class SupportView(discord.ui.View):
                 await interaction.message.edit(content=None, embed=None, view=None)
                 await alliance_cog.show_main_menu(interaction)
 
+
 async def setup(bot):
-    await bot.add_cog(SupportOperations(bot)) 
+    await bot.add_cog(SupportOperations(bot))

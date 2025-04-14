@@ -246,397 +246,398 @@ class Alliance(commands.Cog):
                 return
 
             try:
-                if custom_id == "alliance_operations":
-                    embed = discord.Embed(
-                        title="🏰 Alliance Operations",
-                        description=(
-                            "Please select an operation:\n\n"
-                            "**Available Operations**\n"
-                            "━━━━━━━━━━━━━━━━━━━━━━\n"
-                            "➕ **Add Alliance**\n"
-                            "└ Create a new alliance\n\n"
-                            "✏️ **Edit Alliance**\n"
-                            "└ Modify existing alliance settings\n\n"
-                            "🗑️ **Delete Alliance**\n"
-                            "└ Remove an existing alliance\n\n"
-                            "👀 **View Alliances**\n"
-                            "└ List all available alliances\n"
-                            "━━━━━━━━━━━━━━━━━━━━━━"
-                        ),
-                        color=discord.Color.blue()
-                    )
-                    
-                    view = discord.ui.View()
-                    view.add_item(discord.ui.Button(
-                        label="Add Alliance", 
-                        emoji="➕",
-                        style=discord.ButtonStyle.success, 
-                        custom_id="add_alliance", 
-                        disabled=admin[1] != 1
-                    ))
-                    view.add_item(discord.ui.Button(
-                        label="Edit Alliance", 
-                        emoji="✏️",
-                        style=discord.ButtonStyle.primary, 
-                        custom_id="edit_alliance", 
-                        disabled=admin[1] != 1
-                    ))
-                    view.add_item(discord.ui.Button(
-                        label="Delete Alliance", 
-                        emoji="🗑️",
-                        style=discord.ButtonStyle.danger, 
-                        custom_id="delete_alliance", 
-                        disabled=admin[1] != 1
-                    ))
-                    view.add_item(discord.ui.Button(
-                        label="View Alliances", 
-                        emoji="👀",
-                        style=discord.ButtonStyle.primary, 
-                        custom_id="view_alliances"
-                    ))
-                    view.add_item(discord.ui.Button(
-                        label="Check Alliance", 
-                        emoji="🔍",
-                        style=discord.ButtonStyle.primary, 
-                        custom_id="check_alliance"
-                    ))
-                    view.add_item(discord.ui.Button(
-                        label="Main Menu", 
-                        emoji="🏠",
-                        style=discord.ButtonStyle.secondary, 
-                        custom_id="main_menu"
-                    ))
-
-                    await interaction.response.edit_message(embed=embed, view=view)
-
-                elif custom_id == "edit_alliance":
-                    if admin[1] != 1:
-                        await interaction.response.send_message("You do not have permission to perform this action.", ephemeral=True)
-                        return
-                    await self.edit_alliance(interaction)
-
-                elif custom_id == "check_alliance":
-                    self.c.execute("""
-                        SELECT a.alliance_id, a.name, COALESCE(s.interval, 0) as interval
-                        FROM alliance_list a
-                        LEFT JOIN alliancesettings s ON a.alliance_id = s.alliance_id
-                        ORDER BY a.name
-                    """)
-                    alliances = self.c.fetchall()
-
-                    if not alliances:
-                        await interaction.response.send_message("No alliances found to check.", ephemeral=True)
-                        return
-
-                    options = [
-                        discord.SelectOption(
-                            label="Check All Alliances",
-                            value="all",
-                            description="Start control process for all alliances",
-                            emoji="🔄"
+                match custom_id:
+                    case "alliance_operations":
+                        embed = discord.Embed(
+                            title="🏰 Alliance Operations",
+                            description=(
+                                "Please select an operation:\n\n"
+                                "**Available Operations**\n"
+                                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                                "➕ **Add Alliance**\n"
+                                "└ Create a new alliance\n\n"
+                                "✏️ **Edit Alliance**\n"
+                                "└ Modify existing alliance settings\n\n"
+                                "🗑️ **Delete Alliance**\n"
+                                "└ Remove an existing alliance\n\n"
+                                "👀 **View Alliances**\n"
+                                "└ List all available alliances\n"
+                                "━━━━━━━━━━━━━━━━━━━━━━"
+                            ),
+                            color=discord.Color.blue()
                         )
-                    ]
-                    
-                    options.extend([
-                        discord.SelectOption(
-                            label=f"{name[:40]}",
-                            value=str(alliance_id),
-                            description=f"Control Interval: {interval} minutes"
-                        ) for alliance_id, name, interval in alliances
-                    ])
 
-                    select = discord.ui.Select(
-                        placeholder="Select an alliance to check",
-                        options=options,
-                        custom_id="alliance_check_select"
-                    )
+                        view = discord.ui.View()
+                        view.add_item(discord.ui.Button(
+                            label="Add Alliance",
+                            emoji="➕",
+                            style=discord.ButtonStyle.success,
+                            custom_id="add_alliance",
+                            disabled=admin[1] != 1
+                        ))
+                        view.add_item(discord.ui.Button(
+                            label="Edit Alliance",
+                            emoji="✏️",
+                            style=discord.ButtonStyle.primary,
+                            custom_id="edit_alliance",
+                            disabled=admin[1] != 1
+                        ))
+                        view.add_item(discord.ui.Button(
+                            label="Delete Alliance",
+                            emoji="🗑️",
+                            style=discord.ButtonStyle.danger,
+                            custom_id="delete_alliance",
+                            disabled=admin[1] != 1
+                        ))
+                        view.add_item(discord.ui.Button(
+                            label="View Alliances",
+                            emoji="👀",
+                            style=discord.ButtonStyle.primary,
+                            custom_id="view_alliances"
+                        ))
+                        view.add_item(discord.ui.Button(
+                            label="Check Alliance",
+                            emoji="🔍",
+                            style=discord.ButtonStyle.primary,
+                            custom_id="check_alliance"
+                        ))
+                        view.add_item(discord.ui.Button(
+                            label="Main Menu",
+                            emoji="🏠",
+                            style=discord.ButtonStyle.secondary,
+                            custom_id="main_menu"
+                        ))
 
-                    async def alliance_check_callback(select_interaction: discord.Interaction):
-                        try:
-                            selected_value = select_interaction.data["values"][0]
-                            control_cog = self.bot.get_cog('Control')
-                            
-                            if not control_cog:
-                                await select_interaction.response.send_message("Control module not found.", ephemeral=True)
-                                return
-                            
-                            if not hasattr(control_cog, '_queue_processor_task') or control_cog._queue_processor_task.done():
-                                control_cog._queue_processor_task = asyncio.create_task(control_cog.process_control_queue())
-                            
-                            if selected_value == "all":
-                                progress_embed = discord.Embed(
-                                    title="🔄 Alliance Control Queue",
-                                    description=(
-                                        "**Control Queue Information**\n"
-                                        "━━━━━━━━━━━━━━━━━━━━━━\n"
-                                        f"📊 **Total Alliances:** `{len(alliances)}`\n"
-                                        "🔄 **Status:** `Adding alliances to control queue...`\n"
-                                        "⏰ **Queue Start:** `Now`\n"
-                                        "⚠️ **Note:** `Each alliance will be processed in sequence`\n"
-                                        "⏱️ **Wait Time:** `1 minute between each alliance control`\n"
-                                        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                                        "⌛ Please wait while alliances are being processed..."
-                                    ),
-                                    color=discord.Color.blue()
-                                )
-                                await select_interaction.response.send_message(embed=progress_embed)
-                                
-                                for index, (alliance_id, name, _) in enumerate(alliances):
-                                    try:
-                                        queue_status_embed = discord.Embed(
-                                            title="🔄 Alliance Control Queue",
-                                            description=(
-                                                "**Control Queue Information**\n"
-                                                "━━━━━━━━━━━━━━━━━━━━━━\n"
-                                                f"📊 **Total Alliances:** `{len(alliances)}`\n"
-                                                f"🔄 **Current Alliance:** `{name}`\n"
-                                                f"📈 **Progress:** `{index + 1}/{len(alliances)}`\n"
-                                                f"⏰ **Queue Start:** <t:{int(datetime.now().timestamp())}:R>\n"
-                                                "⏱️ **Wait Time:** `1 minute between each alliance control`\n"
-                                                "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                                                "⌛ Control in progress..."
-                                            ),
-                                            color=discord.Color.blue()
-                                        )
-                                        await select_interaction.edit_original_response(embed=queue_status_embed)
-                                        
-                                        self.c.execute("""
-                                            SELECT channel_id FROM alliancesettings WHERE alliance_id = ?
-                                        """, (alliance_id,))
-                                        channel_data = self.c.fetchone()
-                                        channel = self.bot.get_channel(channel_data[0]) if channel_data else select_interaction.channel
-                                        
-                                        await control_cog.control_queue.put({
-                                            'channel': channel,
-                                            'alliance_id': alliance_id,
-                                            'is_manual': True
-                                        })
-                                        
-                                        while control_cog.current_control:
-                                            await asyncio.sleep(1)
-                                        
-                                        if index < len(alliances) - 1:
-                                            await asyncio.sleep(60)
-                                    
-                                    except Exception as e:
-                                        print(f"Error processing alliance {name}: {e}")
-                                        continue
-                                
-                                queue_complete_embed = discord.Embed(
-                                    title="✅ Alliance Control Queue Complete",
-                                    description=(
-                                        "**Queue Status Information**\n"
-                                        "━━━━━━━━━━━━━━━━━━━━━━\n"
-                                        f"📊 **Total Alliances:** `{len(alliances)}`\n"
-                                        "🔄 **Status:** `All controls completed`\n"
-                                        f"⏰ **Completion Time:** <t:{int(datetime.now().timestamp())}:R>\n"
-                                        "📝 **Note:** `Control results have been shared in respective channels`\n"
-                                        "━━━━━━━━━━━━━━━━━━━━━━"
-                                    ),
-                                    color=discord.Color.green()
-                                )
-                                await select_interaction.edit_original_response(embed=queue_complete_embed)
-                            
-                            else:
-                                alliance_id = int(selected_value)
-                                self.c.execute("""
-                                    SELECT a.name, s.channel_id 
-                                    FROM alliance_list a
-                                    LEFT JOIN alliancesettings s ON a.alliance_id = s.alliance_id
-                                    WHERE a.alliance_id = ?
-                                """, (alliance_id,))
-                                alliance_data = self.c.fetchone()
+                        await interaction.response.edit_message(embed=embed, view=view)
 
-                                if not alliance_data:
-                                    await select_interaction.response.send_message("Alliance not found.", ephemeral=True)
+                    case "edit_alliance":
+                        if admin[1] != 1:
+                            await interaction.response.send_message("You do not have permission to perform this action.", ephemeral=True)
+                            return
+                        await self.edit_alliance(interaction)
+
+                    case "check_alliance":
+                        self.c.execute("""
+                            SELECT a.alliance_id, a.name, COALESCE(s.interval, 0) as interval
+                            FROM alliance_list a
+                            LEFT JOIN alliancesettings s ON a.alliance_id = s.alliance_id
+                            ORDER BY a.name
+                        """)
+                        alliances = self.c.fetchall()
+
+                        if not alliances:
+                            await interaction.response.send_message("No alliances found to check.", ephemeral=True)
+                            return
+
+                        options = [
+                            discord.SelectOption(
+                                label="Check All Alliances",
+                                value="all",
+                                description="Start control process for all alliances",
+                                emoji="🔄"
+                            )
+                        ]
+
+                        options.extend([
+                            discord.SelectOption(
+                                label=f"{name[:40]}",
+                                value=str(alliance_id),
+                                description=f"Control Interval: {interval} minutes"
+                            ) for alliance_id, name, interval in alliances
+                        ])
+
+                        select = discord.ui.Select(
+                            placeholder="Select an alliance to check",
+                            options=options,
+                            custom_id="alliance_check_select"
+                        )
+
+                        async def alliance_check_callback(select_interaction: discord.Interaction):
+                            try:
+                                selected_value = select_interaction.data["values"][0]
+                                control_cog = self.bot.get_cog('Control')
+
+                                if not control_cog:
+                                    await select_interaction.response.send_message("Control module not found.", ephemeral=True)
                                     return
 
-                                alliance_name, channel_id = alliance_data
-                                channel = self.bot.get_channel(channel_id) if channel_id else select_interaction.channel
-                                
-                                status_embed = discord.Embed(
-                                    title="🔍 Alliance Control",
-                                    description=(
-                                        f"Control process will start for alliance **{alliance_name}**.\n\n"
-                                        "**Process Information**\n"
-                                        "━━━━━━━━━━━━━━━━━━━━━━\n"
-                                        "• Status: `Queued`\n"
-                                        "• Process: `Starting...`\n"
-                                        "• Channel: `Results will be shared in the designated channel`\n"
-                                        "━━━━━━━━━━━━━━━━━━━━━━"
-                                    ),
-                                    color=discord.Color.blue()
+                                if not hasattr(control_cog, '_queue_processor_task') or control_cog._queue_processor_task.done():
+                                    control_cog._queue_processor_task = asyncio.create_task(control_cog.process_control_queue())
+
+                                if selected_value == "all":
+                                    progress_embed = discord.Embed(
+                                        title="🔄 Alliance Control Queue",
+                                        description=(
+                                            "**Control Queue Information**\n"
+                                            "━━━━━━━━━━━━━━━━━━━━━━\n"
+                                            f"📊 **Total Alliances:** `{len(alliances)}`\n"
+                                            "🔄 **Status:** `Adding alliances to control queue...`\n"
+                                            "⏰ **Queue Start:** `Now`\n"
+                                            "⚠️ **Note:** `Each alliance will be processed in sequence`\n"
+                                            "⏱️ **Wait Time:** `1 minute between each alliance control`\n"
+                                            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                                            "⌛ Please wait while alliances are being processed..."
+                                        ),
+                                        color=discord.Color.blue()
+                                    )
+                                    await select_interaction.response.send_message(embed=progress_embed)
+
+                                    for index, (alliance_id, name, _) in enumerate(alliances):
+                                        try:
+                                            queue_status_embed = discord.Embed(
+                                                title="🔄 Alliance Control Queue",
+                                                description=(
+                                                    "**Control Queue Information**\n"
+                                                    "━━━━━━━━━━━━━━━━━━━━━━\n"
+                                                    f"📊 **Total Alliances:** `{len(alliances)}`\n"
+                                                    f"🔄 **Current Alliance:** `{name}`\n"
+                                                    f"📈 **Progress:** `{index + 1}/{len(alliances)}`\n"
+                                                    f"⏰ **Queue Start:** <t:{int(datetime.now().timestamp())}:R>\n"
+                                                    "⏱️ **Wait Time:** `1 minute between each alliance control`\n"
+                                                    "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                                                    "⌛ Control in progress..."
+                                                ),
+                                                color=discord.Color.blue()
+                                            )
+                                            await select_interaction.edit_original_response(embed=queue_status_embed)
+
+                                            self.c.execute("""
+                                                SELECT channel_id FROM alliancesettings WHERE alliance_id = ?
+                                            """, (alliance_id,))
+                                            channel_data = self.c.fetchone()
+                                            channel = self.bot.get_channel(channel_data[0]) if channel_data else select_interaction.channel
+
+                                            await control_cog.control_queue.put({
+                                                'channel': channel,
+                                                'alliance_id': alliance_id,
+                                                'is_manual': True
+                                            })
+
+                                            while control_cog.current_control:
+                                                await asyncio.sleep(1)
+
+                                            if index < len(alliances) - 1:
+                                                await asyncio.sleep(60)
+
+                                        except Exception as e:
+                                            print(f"Error processing alliance {name}: {e}")
+                                            continue
+
+                                    queue_complete_embed = discord.Embed(
+                                        title="✅ Alliance Control Queue Complete",
+                                        description=(
+                                            "**Queue Status Information**\n"
+                                            "━━━━━━━━━━━━━━━━━━━━━━\n"
+                                            f"📊 **Total Alliances:** `{len(alliances)}`\n"
+                                            "🔄 **Status:** `All controls completed`\n"
+                                            f"⏰ **Completion Time:** <t:{int(datetime.now().timestamp())}:R>\n"
+                                            "📝 **Note:** `Control results have been shared in respective channels`\n"
+                                            "━━━━━━━━━━━━━━━━━━━━━━"
+                                        ),
+                                        color=discord.Color.green()
+                                    )
+                                    await select_interaction.edit_original_response(embed=queue_complete_embed)
+
+                                else:
+                                    alliance_id = int(selected_value)
+                                    self.c.execute("""
+                                        SELECT a.name, s.channel_id 
+                                        FROM alliance_list a
+                                        LEFT JOIN alliancesettings s ON a.alliance_id = s.alliance_id
+                                        WHERE a.alliance_id = ?
+                                    """, (alliance_id,))
+                                    alliance_data = self.c.fetchone()
+
+                                    if not alliance_data:
+                                        await select_interaction.response.send_message("Alliance not found.", ephemeral=True)
+                                        return
+
+                                    alliance_name, channel_id = alliance_data
+                                    channel = self.bot.get_channel(channel_id) if channel_id else select_interaction.channel
+
+                                    status_embed = discord.Embed(
+                                        title="🔍 Alliance Control",
+                                        description=(
+                                            f"Control process will start for alliance **{alliance_name}**.\n\n"
+                                            "**Process Information**\n"
+                                            "━━━━━━━━━━━━━━━━━━━━━━\n"
+                                            "• Status: `Queued`\n"
+                                            "• Process: `Starting...`\n"
+                                            "• Channel: `Results will be shared in the designated channel`\n"
+                                            "━━━━━━━━━━━━━━━━━━━━━━"
+                                        ),
+                                        color=discord.Color.blue()
+                                    )
+                                    await select_interaction.response.send_message(embed=status_embed)
+
+                                    await control_cog.control_queue.put({
+                                        'channel': channel,
+                                        'alliance_id': alliance_id,
+                                        'is_manual': True
+                                    })
+
+                            except Exception as e:
+                                print(f"Alliance check error: {e}")
+                                await select_interaction.response.send_message(
+                                    "An error occurred during the control process.",
+                                    ephemeral=True
                                 )
-                                await select_interaction.response.send_message(embed=status_embed)
-                                
-                                await control_cog.control_queue.put({
-                                    'channel': channel,
-                                    'alliance_id': alliance_id,
-                                    'is_manual': True
-                                })
 
+                        select.callback = alliance_check_callback
+                        view = discord.ui.View()
+                        view.add_item(select)
+
+                        embed = discord.Embed(
+                            title="🔍 Alliance Control",
+                            description=(
+                                "Please select an alliance to check:\n\n"
+                                "**Information**\n"
+                                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                                "• Select 'Check All Alliances' to process all alliances\n"
+                                "• Control process may take a few minutes\n"
+                                "• Results will be shared in the designated channel\n"
+                                "• Other controls will be queued during the process\n"
+                                "━━━━━━━━━━━━━━━━━━━━━━"
+                            ),
+                            color=discord.Color.blue()
+                        )
+                        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+                    case "member_operations":
+                        await self.bot.get_cog("AllianceMemberOperations").handle_member_operations(interaction)
+
+                    case "bot_operations":
+                        try:
+                            bot_ops_cog = interaction.client.get_cog("BotOperations")
+                            if bot_ops_cog:
+                                await bot_ops_cog.show_bot_operations_menu(interaction)
+                            else:
+                                await interaction.response.send_message(
+                                    "❌ Bot Operations module not found.",
+                                    ephemeral=True
+                                )
                         except Exception as e:
-                            print(f"Alliance check error: {e}")
-                            await select_interaction.response.send_message(
-                                "An error occurred during the control process.", 
-                                ephemeral=True
-                            )
+                            if not any(error_code in str(e) for error_code in ["10062", "40060"]):
+                                print(f"Bot operations error: {e}")
+                            if not interaction.response.is_done():
+                                await interaction.response.send_message(
+                                    "An error occurred while loading Bot Operations.",
+                                    ephemeral=True
+                                )
+                            else:
+                                await interaction.followup.send(
+                                    "An error occurred while loading Bot Operations.",
+                                    ephemeral=True
+                                )
 
-                    select.callback = alliance_check_callback
-                    view = discord.ui.View()
-                    view.add_item(select)
+                    case "gift_code_operations":
+                        try:
+                            gift_ops_cog = interaction.client.get_cog("GiftOperations")
+                            if gift_ops_cog:
+                                await gift_ops_cog.show_gift_menu(interaction)
+                            else:
+                                await interaction.response.send_message(
+                                    "❌ Gift Operations module not found.",
+                                    ephemeral=True
+                                )
+                        except Exception as e:
+                            print(f"Gift operations error: {e}")
+                            if not interaction.response.is_done():
+                                await interaction.response.send_message(
+                                    "An error occurred while loading Gift Operations.",
+                                    ephemeral=True
+                                )
+                            else:
+                                await interaction.followup.send(
+                                    "An error occurred while loading Gift Operations.",
+                                    ephemeral=True
+                                )
 
-                    embed = discord.Embed(
-                        title="🔍 Alliance Control",
-                        description=(
-                            "Please select an alliance to check:\n\n"
-                            "**Information**\n"
-                            "━━━━━━━━━━━━━━━━━━━━━━\n"
-                            "• Select 'Check All Alliances' to process all alliances\n"
-                            "• Control process may take a few minutes\n"
-                            "• Results will be shared in the designated channel\n"
-                            "• Other controls will be queued during the process\n"
-                            "━━━━━━━━━━━━━━━━━━━━━━"
-                        ),
-                        color=discord.Color.blue()
-                    )
-                    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+                    case "add_alliance":
+                        if admin[1] != 1:
+                            await interaction.response.send_message("You do not have permission to perform this action.", ephemeral=True)
+                            return
+                        await self.add_alliance(interaction)
 
-                elif custom_id == "member_operations":
-                    await self.bot.get_cog("AllianceMemberOperations").handle_member_operations(interaction)
+                    case "delete_alliance":
+                        if admin[1] != 1:
+                            await interaction.response.send_message("You do not have permission to perform this action.", ephemeral=True)
+                            return
+                        await self.delete_alliance(interaction)
 
-                elif custom_id == "bot_operations":
-                    try:
-                        bot_ops_cog = interaction.client.get_cog("BotOperations")
-                        if bot_ops_cog:
-                            await bot_ops_cog.show_bot_operations_menu(interaction)
-                        else:
-                            await interaction.response.send_message(
-                                "❌ Bot Operations module not found.",
-                                ephemeral=True
-                            )
-                    except Exception as e:
-                        if not any(error_code in str(e) for error_code in ["10062", "40060"]):
-                            print(f"Bot operations error: {e}")
-                        if not interaction.response.is_done():
-                            await interaction.response.send_message(
-                                "An error occurred while loading Bot Operations.",
-                                ephemeral=True
-                            )
-                        else:
-                            await interaction.followup.send(
-                                "An error occurred while loading Bot Operations.",
-                                ephemeral=True
-                            )
+                    case "view_alliances":
+                        await self.view_alliances(interaction)
 
-                elif custom_id == "gift_code_operations":
-                    try:
-                        gift_ops_cog = interaction.client.get_cog("GiftOperations")
-                        if gift_ops_cog:
-                            await gift_ops_cog.show_gift_menu(interaction)
-                        else:
-                            await interaction.response.send_message(
-                                "❌ Gift Operations module not found.",
-                                ephemeral=True
-                            )
-                    except Exception as e:
-                        print(f"Gift operations error: {e}")
-                        if not interaction.response.is_done():
-                            await interaction.response.send_message(
-                                "An error occurred while loading Gift Operations.",
-                                ephemeral=True
-                            )
-                        else:
-                            await interaction.followup.send(
-                                "An error occurred while loading Gift Operations.",
-                                ephemeral=True
-                            )
+                    case "support_operations":
+                        try:
+                            support_ops_cog = interaction.client.get_cog("SupportOperations")
+                            if support_ops_cog:
+                                await support_ops_cog.show_support_menu(interaction)
+                            else:
+                                await interaction.response.send_message(
+                                    "❌ Support Operations module not found.",
+                                    ephemeral=True
+                                )
+                        except Exception as e:
+                            if not any(error_code in str(e) for error_code in ["10062", "40060"]):
+                                print(f"Support operations error: {e}")
+                            if not interaction.response.is_done():
+                                await interaction.response.send_message(
+                                    "An error occurred while loading Support Operations.",
+                                    ephemeral=True
+                                )
+                            else:
+                                await interaction.followup.send(
+                                    "An error occurred while loading Support Operations.",
+                                    ephemeral=True
+                                )
 
-                elif custom_id == "add_alliance":
-                    if admin[1] != 1:
-                        await interaction.response.send_message("You do not have permission to perform this action.", ephemeral=True)
-                        return
-                    await self.add_alliance(interaction)
+                    case "alliance_history":
+                        try:
+                            changes_cog = interaction.client.get_cog("Changes")
+                            if changes_cog:
+                                await changes_cog.show_alliance_history_menu(interaction)
+                            else:
+                                await interaction.response.send_message(
+                                    "❌ Alliance History module not found.",
+                                    ephemeral=True
+                                )
+                        except Exception as e:
+                            print(f"Alliance history error: {e}")
+                            if not interaction.response.is_done():
+                                await interaction.response.send_message(
+                                    "An error occurred while loading Alliance History.",
+                                    ephemeral=True
+                                )
+                            else:
+                                await interaction.followup.send(
+                                    "An error occurred while loading Alliance History.",
+                                    ephemeral=True
+                                )
 
-                elif custom_id == "delete_alliance":
-                    if admin[1] != 1:
-                        await interaction.response.send_message("You do not have permission to perform this action.", ephemeral=True)
-                        return
-                    await self.delete_alliance(interaction)
-
-                elif custom_id == "view_alliances":
-                    await self.view_alliances(interaction)
-
-                elif custom_id == "support_operations":
-                    try:
-                        support_ops_cog = interaction.client.get_cog("SupportOperations")
-                        if support_ops_cog:
-                            await support_ops_cog.show_support_menu(interaction)
-                        else:
-                            await interaction.response.send_message(
-                                "❌ Support Operations module not found.",
-                                ephemeral=True
-                            )
-                    except Exception as e:
-                        if not any(error_code in str(e) for error_code in ["10062", "40060"]):
-                            print(f"Support operations error: {e}")
-                        if not interaction.response.is_done():
-                            await interaction.response.send_message(
-                                "An error occurred while loading Support Operations.", 
-                                ephemeral=True
-                            )
-                        else:
-                            await interaction.followup.send(
-                                "An error occurred while loading Support Operations.",
-                                ephemeral=True
-                            )
-
-                elif custom_id == "alliance_history":
-                    try:
-                        changes_cog = interaction.client.get_cog("Changes")
-                        if changes_cog:
-                            await changes_cog.show_alliance_history_menu(interaction)
-                        else:
-                            await interaction.response.send_message(
-                                "❌ Alliance History module not found.",
-                                ephemeral=True
-                            )
-                    except Exception as e:
-                        print(f"Alliance history error: {e}")
-                        if not interaction.response.is_done():
-                            await interaction.response.send_message(
-                                "An error occurred while loading Alliance History.",
-                                ephemeral=True
-                            )
-                        else:
-                            await interaction.followup.send(
-                                "An error occurred while loading Alliance History.",
-                                ephemeral=True
-                            )
-
-                elif custom_id == "other_features":
-                    try:
-                        other_features_cog = interaction.client.get_cog("OtherFeatures")
-                        if other_features_cog:
-                            await other_features_cog.show_other_features_menu(interaction)
-                        else:
-                            await interaction.response.send_message(
-                                "❌ Other Features module not found.",
-                                ephemeral=True
-                            )
-                    except Exception as e:
-                        if not any(error_code in str(e) for error_code in ["10062", "40060"]):
-                            print(f"Other features error: {e}")
-                        if not interaction.response.is_done():
-                            await interaction.response.send_message(
-                                "An error occurred while loading Other Features menu.",
-                                ephemeral=True
-                            )
-                        else:
-                            await interaction.followup.send(
-                                "An error occurred while loading Other Features menu.",
-                                ephemeral=True
-                            )
+                    case "other_features":
+                        try:
+                            other_features_cog = interaction.client.get_cog("OtherFeatures")
+                            if other_features_cog:
+                                await other_features_cog.show_other_features_menu(interaction)
+                            else:
+                                await interaction.response.send_message(
+                                    "❌ Other Features module not found.",
+                                    ephemeral=True
+                                )
+                        except Exception as e:
+                            if not any(error_code in str(e) for error_code in ["10062", "40060"]):
+                                print(f"Other features error: {e}")
+                            if not interaction.response.is_done():
+                                await interaction.response.send_message(
+                                    "An error occurred while loading Other Features menu.",
+                                    ephemeral=True
+                                )
+                            else:
+                                await interaction.followup.send(
+                                    "An error occurred while loading Other Features menu.",
+                                    ephemeral=True
+                                )
 
             except Exception as e:
                 if not any(error_code in str(e) for error_code in ["10062", "40060"]):
@@ -1177,107 +1178,107 @@ class Alliance(commands.Cog):
     async def handle_button_interaction(self, interaction: discord.Interaction):
         custom_id = interaction.data["custom_id"]
         
-        if custom_id == "main_menu":
-            embed = discord.Embed(
-                title="⚙️ Settings Menu",
-                description=(
-                    "Please select a category:\n\n"
-                    "**Menu Categories**\n"
-                    "━━━━━━━━━━━━━━━━━━━━━━\n"
-                    "🏰 **Alliance Operations**\n"
-                    "└ Manage alliances and settings\n\n"
-                    "👥 **Alliance Member Operations**\n"
-                    "└ Add, remove, and view members\n\n"
-                    "🤖 **Bot Operations**\n"
-                    "└ Configure bot settings\n\n"
-                    "🎁 **Gift Code Operations**\n"
-                    "└ Manage gift codes and rewards\n\n"
-                    "📜 **Alliance History**\n"
-                    "└ View alliance changes and history\n\n"
-                    "🆘 **Support Operations**\n"
-                    "└ Access support features\n"
-                    "━━━━━━━━━━━━━━━━━━━━━━"
-                ),
-                color=discord.Color.blue()
-            )
-            
-            view = discord.ui.View()
-            view.add_item(discord.ui.Button(
-                label="Alliance Operations",
-                emoji="🏰",
-                style=discord.ButtonStyle.primary,
-                custom_id="alliance_operations",
-                row=0
-            ))
-            view.add_item(discord.ui.Button(
-                label="Member Operations",
-                emoji="👥",
-                style=discord.ButtonStyle.primary,
-                custom_id="member_operations",
-                row=0
-            ))
-            view.add_item(discord.ui.Button(
-                label="Bot Operations",
-                emoji="🤖",
-                style=discord.ButtonStyle.primary,
-                custom_id="bot_operations",
-                row=1
-            ))
-            view.add_item(discord.ui.Button(
-                label="Gift Operations",
-                emoji="🎁",
-                style=discord.ButtonStyle.primary,
-                custom_id="gift_code_operations",
-                row=1
-            ))
-            view.add_item(discord.ui.Button(
-                label="Alliance History",
-                emoji="📜",
-                style=discord.ButtonStyle.primary,
-                custom_id="alliance_history",
-                row=2
-            ))
-            view.add_item(discord.ui.Button(
-                label="Support Operations",
-                emoji="🆘",
-                style=discord.ButtonStyle.primary,
-                custom_id="support_operations",
-                row=2
-            ))
-            view.add_item(discord.ui.Button(
-                label="Other Features",
-                emoji="🔧",
-                style=discord.ButtonStyle.primary,
-                custom_id="other_features",
-                row=3
-            ))
+        match custom_id:
+            case "main_menu":
+                embed = discord.Embed(
+                    title="⚙️ Settings Menu",
+                    description=(
+                        "Please select a category:\n\n"
+                        "**Menu Categories**\n"
+                        "━━━━━━━━━━━━━━━━━━━━━━\n"
+                        "🏰 **Alliance Operations**\n"
+                        "└ Manage alliances and settings\n\n"
+                        "👥 **Alliance Member Operations**\n"
+                        "└ Add, remove, and view members\n\n"
+                        "🤖 **Bot Operations**\n"
+                        "└ Configure bot settings\n\n"
+                        "🎁 **Gift Code Operations**\n"
+                        "└ Manage gift codes and rewards\n\n"
+                        "📜 **Alliance History**\n"
+                        "└ View alliance changes and history\n\n"
+                        "🆘 **Support Operations**\n"
+                        "└ Access support features\n"
+                        "━━━━━━━━━━━━━━━━━━━━━━"
+                    ),
+                    color=discord.Color.blue()
+                )
 
+                view = discord.ui.View()
+                view.add_item(discord.ui.Button(
+                    label="Alliance Operations",
+                    emoji="🏰",
+                    style=discord.ButtonStyle.primary,
+                    custom_id="alliance_operations",
+                    row=0
+                ))
+                view.add_item(discord.ui.Button(
+                    label="Member Operations",
+                    emoji="👥",
+                    style=discord.ButtonStyle.primary,
+                    custom_id="member_operations",
+                    row=0
+                ))
+                view.add_item(discord.ui.Button(
+                    label="Bot Operations",
+                    emoji="🤖",
+                    style=discord.ButtonStyle.primary,
+                    custom_id="bot_operations",
+                    row=1
+                ))
+                view.add_item(discord.ui.Button(
+                    label="Gift Operations",
+                    emoji="🎁",
+                    style=discord.ButtonStyle.primary,
+                    custom_id="gift_code_operations",
+                    row=1
+                ))
+                view.add_item(discord.ui.Button(
+                    label="Alliance History",
+                    emoji="📜",
+                    style=discord.ButtonStyle.primary,
+                    custom_id="alliance_history",
+                    row=2
+                ))
+                view.add_item(discord.ui.Button(
+                    label="Support Operations",
+                    emoji="🆘",
+                    style=discord.ButtonStyle.primary,
+                    custom_id="support_operations",
+                    row=2
+                ))
+                view.add_item(discord.ui.Button(
+                    label="Other Features",
+                    emoji="🔧",
+                    style=discord.ButtonStyle.primary,
+                    custom_id="other_features",
+                    row=3
+                ))
 
-            await interaction.response.edit_message(embed=embed, view=view)
+                await interaction.response.edit_message(embed=embed, view=view)
 
-        elif custom_id == "other_features":
-            try:
-                other_features_cog = interaction.client.get_cog("OtherFeatures")
-                if other_features_cog:
-                    await other_features_cog.show_other_features_menu(interaction)
-                else:
-                    await interaction.response.send_message(
-                        "❌ Other Features module not found.",
-                        ephemeral=True
-                    )
-            except Exception as e:
-                if not any(error_code in str(e) for error_code in ["10062", "40060"]):
-                    print(f"Other features error: {e}")
-                if not interaction.response.is_done():
-                    await interaction.response.send_message(
-                        "An error occurred while loading Other Features menu.",
-                        ephemeral=True
-                    )
-                else:
-                    await interaction.followup.send(
-                        "An error occurred while loading Other Features menu.",
-                        ephemeral=True
-                    )
+            case "other_features":
+                try:
+                    other_features_cog = interaction.client.get_cog("OtherFeatures")
+                    if other_features_cog:
+                        await other_features_cog.show_other_features_menu(interaction)
+                    else:
+                        await interaction.response.send_message(
+                            "❌ Other Features module not found.",
+                            ephemeral=True
+                        )
+                except Exception as e:
+                    if not any(error_code in str(e) for error_code in ["10062", "40060"]):
+                        print(f"Other features error: {e}")
+                    if not interaction.response.is_done():
+                        await interaction.response.send_message(
+                            "An error occurred while loading Other Features menu.",
+                            ephemeral=True
+                        )
+                    else:
+                        await interaction.followup.send(
+                            "An error occurred while loading Other Features menu.",
+                            ephemeral=True
+                        )
 
     async def show_main_menu(self, interaction: discord.Interaction):
         try:
@@ -1383,6 +1384,7 @@ class Alliance(commands.Cog):
                 ephemeral=True
             )
 
+
 class AllianceModal(discord.ui.Modal):
     def __init__(self, title: str, default_name: str = "", default_interval: str = "0"):
         super().__init__(title=title)
@@ -1406,6 +1408,7 @@ class AllianceModal(discord.ui.Modal):
     async def on_submit(self, interaction: discord.Interaction):
         self.interaction = interaction
 
+
 class AllianceView(discord.ui.View):
     def __init__(self, cog):
         super().__init__()
@@ -1419,6 +1422,7 @@ class AllianceView(discord.ui.View):
     )
     async def main_menu_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.cog.show_main_menu(interaction)
+
 
 class MemberOperationsView(discord.ui.View):
     def __init__(self, cog):
@@ -1577,6 +1581,7 @@ class MemberOperationsView(discord.ui.View):
                 ephemeral=True
             )
 
+
 class PaginatedDeleteView(discord.ui.View):
     def __init__(self, pages, original_callback):
         super().__init__(timeout=300)
@@ -1658,6 +1663,7 @@ class PaginatedDeleteView(discord.ui.View):
         
         await interaction.response.edit_message(embed=embed, view=self)
 
+
 class PaginatedChannelView(discord.ui.View):
     def __init__(self, channels, original_callback):
         super().__init__(timeout=300)
@@ -1733,6 +1739,7 @@ class PaginatedChannelView(discord.ui.View):
         )
         
         await interaction.response.edit_message(embed=embed, view=self)
+
 
 async def setup(bot):
     conn = sqlite3.connect('db/alliance.sqlite')

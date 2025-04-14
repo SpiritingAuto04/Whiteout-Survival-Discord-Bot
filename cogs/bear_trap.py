@@ -9,6 +9,7 @@ import json
 import urllib.parse
 import traceback
 
+
 class BearTrap(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -70,7 +71,7 @@ class BearTrap(commands.Cog):
             self.cursor.execute("SELECT mention_message FROM bear_notification_embeds LIMIT 1")
         except sqlite3.OperationalError:
             self.cursor.execute("ALTER TABLE bear_notification_embeds ADD COLUMN mention_message TEXT")
-        
+
         self.conn.commit()
 
     async def cog_load(self):
@@ -83,9 +84,9 @@ class BearTrap(commands.Cog):
             self.notification_task.cancel()
 
     async def save_notification(self, guild_id: int, channel_id: int, start_date: datetime,
-                              hour: int, minute: int, timezone: str, description: str,
-                              created_by: int, notification_type: int, mention_type: str,
-                              repeat_48h: bool, repeat_minutes: int = 0) -> int:
+                                hour: int, minute: int, timezone: str, description: str,
+                                created_by: int, notification_type: int, mention_type: str,
+                                repeat_48h: bool, repeat_minutes: int = 0) -> int:
         try:
             embed_data = None
             notification_description = description
@@ -93,7 +94,7 @@ class BearTrap(commands.Cog):
             if description.startswith("CUSTOM_TIMES:"):
                 parts = description.split("|", 1)
                 notification_description = description
-                
+
                 if len(parts) > 1 and "EMBED_MESSAGE:" in parts[1]:
                     if hasattr(self, 'current_embed_data'):
                         embed_data = self.current_embed_data
@@ -119,7 +120,7 @@ class BearTrap(commands.Cog):
             """, (guild_id, channel_id, hour, minute, timezone, notification_description, notification_type,
                   mention_type, 1 if repeat_48h else 0, repeat_minutes, created_by,
                   next_notification.isoformat()))
-            
+
             notification_id = self.cursor.lastrowid
 
             if embed_data:
@@ -161,7 +162,7 @@ class BearTrap(commands.Cog):
                 FROM bear_notification_embeds 
                 WHERE notification_id = ?
             """, (notification_id,))
-            
+
             result = self.cursor.fetchone()
             if result:
                 return {
@@ -174,7 +175,8 @@ class BearTrap(commands.Cog):
                     'author': result[6],
                     'mention_message': result[7]
                 }
-            return None
+            else:
+                return None
         except Exception as e:
             print(f"Error getting embed: {e}")
             return None
@@ -201,7 +203,7 @@ class BearTrap(commands.Cog):
             except Exception as e:
                 print(f"Error in notification checker: {e}")
 
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.5)
 
     async def process_notification(self, notification):
         try:
@@ -209,7 +211,7 @@ class BearTrap(commands.Cog):
              notification_type, mention_type, repeat_enabled, repeat_minutes,
              is_enabled, created_at, created_by, last_notification,
              next_notification) = notification
-            
+
             if not is_enabled:
                 return
 
@@ -231,7 +233,7 @@ class BearTrap(commands.Cog):
                 time_diff = (now - next_time).total_seconds() / 60
                 periods_passed = int(time_diff / repeat_minutes) + 1
                 next_time = next_time + timedelta(minutes=repeat_minutes * periods_passed)
-                
+
                 self.cursor.execute("""
                     UPDATE bear_notifications 
                     SET next_notification = ? 
@@ -247,43 +249,44 @@ class BearTrap(commands.Cog):
                 return
 
             notification_times = []
-            
-            if notification_type == 1:  
-                notification_times = [30, 10, 5, 0]
-            elif notification_type == 2:  
-                notification_times = [10, 5, 0]
-            elif notification_type == 3:  
-                notification_times = [5, 0]
-            elif notification_type == 4:  
-                notification_times = [5]
-            elif notification_type == 5:  
-                notification_times = [0]
-            elif notification_type == 6:  
-                if description.startswith("CUSTOM_TIMES:"):
-                    times_str = description.split("CUSTOM_TIMES:")[1].split("|")[0]
-                    if ',' in times_str:
-                        notification_times = [int(t.strip()) for t in times_str.split(',')]
-                    else:
-                        notification_times = [int(t.strip()) for t in times_str.split('-')]
-                    description = description.split("|")[1]
+
+            match notification_type:
+                case 1:
+                    notification_times = [30, 10, 5, 0]
+                case 2:
+                    notification_times = [10, 5, 0]
+                case 3:
+                    notification_times = [5, 0]
+                case 4:
+                    notification_times = [5]
+                case 5:
+                    notification_times = [0]
+                case 6:
+                    if description.startswith("CUSTOM_TIMES:"):
+                        times_str = description.split("CUSTOM_TIMES:")[1].split("|")[0]
+                        if ',' in times_str:
+                            notification_times = [int(t.strip()) for t in times_str.split(',')]
+                        else:
+                            notification_times = [int(t.strip()) for t in times_str.split('-')]
+                        description = description.split("|")[1]
 
             should_notify = False
             current_time = None
 
             for notify_time in notification_times:
                 time_diff = abs(minutes_until - notify_time)
-                if time_diff < 0.1:  
+                if time_diff < 0.1:
                     thirty_seconds_ago = (now - timedelta(seconds=30)).strftime('%Y-%m-%d %H:%M:%S')
-                    
+
                     self.cursor.execute("""
                         SELECT COUNT(*) FROM notification_history 
                         WHERE notification_id = ? 
                         AND notification_time = ? 
                         AND sent_at >= ?
                     """, (id, notify_time, thirty_seconds_ago))
-                    
+
                     count = self.cursor.fetchone()[0]
-                    if count == 0:  
+                    if count == 0:
                         should_notify = True
                         current_time = notify_time
                     break
@@ -308,7 +311,7 @@ class BearTrap(commands.Cog):
                         mention_text = f"Member {member_id}"
 
                 rounded_time = round(minutes_until)
-                
+
                 if rounded_time == 1:
                     time_unit = "minute"
                 elif rounded_time < 60:
@@ -331,11 +334,11 @@ class BearTrap(commands.Cog):
                 if "EMBED_MESSAGE:" in description:
                     try:
                         embed_data = await self.get_notification_embed(id)
-                        
+
                         if embed_data:
                             try:
                                 embed = discord.Embed()
-                                
+
                                 try:
                                     color_value = embed_data.get("color")
                                     if color_value is not None:
@@ -362,11 +365,15 @@ class BearTrap(commands.Cog):
                                     embed.description = description
 
                                 image_url = embed_data.get("image_url", "")
-                                if image_url and isinstance(image_url, str) and image_url.strip() and image_url.startswith(('http://', 'https://')):
+                                if image_url and isinstance(image_url,
+                                                            str) and image_url.strip() and image_url.startswith(
+                                    ('http://', 'https://')):
                                     embed.set_image(url=image_url)
 
                                 thumbnail_url = embed_data.get("thumbnail_url", "")
-                                if thumbnail_url and isinstance(thumbnail_url, str) and thumbnail_url.strip() and thumbnail_url.startswith(('http://', 'https://')):
+                                if thumbnail_url and isinstance(thumbnail_url,
+                                                                str) and thumbnail_url.strip() and thumbnail_url.startswith(
+                                    ('http://', 'https://')):
                                     embed.set_thumbnail(url=thumbnail_url)
 
                                 footer_text = embed_data.get("footer", "")
@@ -400,19 +407,22 @@ class BearTrap(commands.Cog):
                                     await channel.send(embed=embed)
                                 else:
                                     if rounded_time > 0:
-                                        await channel.send(f"{mention_text} ⏰ **Notification** will start in **{time_text}**!")
+                                        await channel.send(
+                                            f"{mention_text} ⏰ **Notification** will start in **{time_text}**!")
                                     else:
                                         await channel.send(f"{mention_text} ⏰ **Notification**")
                             except Exception as e:
                                 print(f"Error creating embed: {e}")
                                 if rounded_time > 0:
-                                    await channel.send(f"{mention_text} ⏰ **Error sending embed notification** will start in **{time_text}**!")
+                                    await channel.send(
+                                        f"{mention_text} ⏰ **Error sending embed notification** will start in **{time_text}**!")
                                 else:
                                     await channel.send(f"{mention_text} ⏰ **Error sending embed notification**")
                     except Exception as e:
                         print(f"Error creating embed: {e}")
                         if rounded_time > 0:
-                            await channel.send(f"{mention_text} ⏰ **Error sending embed notification** will start in **{time_text}**!")
+                            await channel.send(
+                                f"{mention_text} ⏰ **Error sending embed notification** will start in **{time_text}**!")
                         else:
                             await channel.send(f"{mention_text} ⏰ **Error sending embed notification**")
                 else:
@@ -421,10 +431,10 @@ class BearTrap(commands.Cog):
                         parts = description.split("|", 1)
                         if len(parts) > 1:
                             actual_description = parts[1]
-                    
+
                     if actual_description.startswith("PLAIN_MESSAGE:"):
                         actual_description = actual_description.replace("PLAIN_MESSAGE:", "", 1)
-                    
+
                     if "@tag" in actual_description or "%t" in actual_description or "{time}" in actual_description:
                         message = actual_description
                         if "@tag" in message:
@@ -436,7 +446,8 @@ class BearTrap(commands.Cog):
                         await channel.send(message)
                     else:
                         if rounded_time > 0:
-                            await channel.send(f"{mention_text} ⏰ **{actual_description}** will start in **{time_text}**!")
+                            await channel.send(
+                                f"{mention_text} ⏰ **{actual_description}** will start in **{time_text}**!")
                         else:
                             await channel.send(f"{mention_text} ⏰ **{actual_description}**")
 
@@ -468,9 +479,9 @@ class BearTrap(commands.Cog):
                             SET is_enabled = 0 
                             WHERE id = ?
                         """, (id,))
-                
+
                 self.conn.commit()
-                
+
         except Exception as e:
             print(f"Error processing notification: {e}")
             import traceback
@@ -520,6 +531,7 @@ class BearTrap(commands.Cog):
             "Asia/Tokyo": current_utc.astimezone(pytz.timezone('Asia/Tokyo')),
         }
         return times
+
     async def show_bear_trap_menu(self, interaction: discord.Interaction):
         try:
             times = self.get_world_times()
@@ -527,7 +539,7 @@ class BearTrap(commands.Cog):
                 f"🌍 **{zone}:** {time.strftime('%H:%M:%S')}"
                 for zone, time in times.items()
             ])
-            
+
             embed = discord.Embed(
                 title="🐻 Bear Trap System",
                 description=(
@@ -555,14 +567,14 @@ class BearTrap(commands.Cog):
 
             embed.set_footer(text="Last Updated")
             embed.timestamp = datetime.now()
-            
+
             view = BearTrapView(self)
-            
+
             try:
                 await interaction.response.edit_message(embed=embed, view=view)
             except discord.InteractionResponded:
                 pass
-                
+
         except Exception as e:
             print(f"Error in show_bear_trap_menu: {e}")
             if not interaction.response.is_done():
@@ -578,16 +590,18 @@ class BearTrap(commands.Cog):
             cursor.execute("SELECT id FROM admin WHERE id = ?", (interaction.user.id,))
             is_admin = cursor.fetchone() is not None
             conn.close()
-            
+
             if not is_admin:
-                await interaction.response.send_message("❌ You don't have permission to use this command!", ephemeral=True)
+                await interaction.response.send_message("❌ You don't have permission to use this command!",
+                                                        ephemeral=True)
                 return False
             return True
         except Exception as e:
             print(f"Error in admin check: {e}")
             return False
 
-    async def show_channel_selection(self, interaction: discord.Interaction, start_date, hour, minute, timezone, message_data, channels):
+    async def show_channel_selection(self, interaction: discord.Interaction, start_date, hour, minute, timezone,
+                                     message_data, channels):
         try:
             embed = discord.Embed(
                 title="📢 Select Channel",
@@ -622,8 +636,10 @@ class BearTrap(commands.Cog):
                 ephemeral=True
             )
 
+
 class RepeatOptionView(discord.ui.View):
-    def __init__(self, cog, start_date, hour, minute, timezone, description, channel_id, notification_type, mention_type, original_message):
+    def __init__(self, cog, start_date, hour, minute, timezone, description, channel_id, notification_type,
+                 mention_type, original_message):
         super().__init__(timeout=300)
         self.cog = cog
         self.start_date = start_date
@@ -671,18 +687,19 @@ class RepeatOptionView(discord.ui.View):
                 6: "Sends notifications at custom times"
             }
 
-            if self.mention_type == "everyone":
-                mention_display = "@everyone"
-            elif self.mention_type.startswith("role_"):
-                role_id = int(self.mention_type.split('_')[1])
-                role = interaction.guild.get_role(role_id)
-                mention_display = f"@{role.name}" if role else f"Role: {role_id}"
-            elif self.mention_type.startswith("member_"):
-                member_id = int(self.mention_type.split('_')[1])
-                member = interaction.guild.get_member(member_id)
-                mention_display = f"@{member.display_name}" if member else f"Member: {member_id}"
-            else:
-                mention_display = "No Mention"
+            match self.mention_type:
+                case "everyone":
+                    mention_display = "@everyone"
+                case self.mention_type.startswith("role_"):
+                    role_id = int(self.mention_type.split('_')[1])
+                    role = interaction.guild.get_role(role_id)
+                    mention_display = f"@{role.name}" if role else f"Role: {role_id}"
+                case self.mention_type.startswith("member_"):
+                    member_id = int(self.mention_type.split('_')[1])
+                    member = interaction.guild.get_member(member_id)
+                    mention_display = f"@{member.display_name}" if member else f"Member: {member_id}"
+                case _:
+                    mention_display = "No Mention"
 
             if not repeat:
                 repeat_text = "❌ No repeat"
@@ -690,20 +707,21 @@ class RepeatOptionView(discord.ui.View):
                 repeat_text = f"🔄 Repeats every {interval_text}"
             else:
                 minutes = repeat_minutes
-                if minutes == 1:
-                    repeat_text = "🔄 Repeats every minute"
-                elif minutes == 60:
-                    repeat_text = "🔄 Repeats every hour"
-                elif minutes == 1440:
-                    repeat_text = "🔄 Repeats daily"
-                elif minutes == 2880:
-                    repeat_text = "🔄 Repeats every 2 days"
-                elif minutes == 4320:
-                    repeat_text = "🔄 Repeats every 3 days"
-                elif minutes == 10080:
-                    repeat_text = "🔄 Repeats weekly"
-                else:
-                    repeat_text = f"🔄 Repeats every {minutes} minutes"
+                match minutes:
+                    case 1:
+                        repeat_text = "🔄 Repeats every minute"
+                    case 60:
+                        repeat_text = "🔄 Repeats every hour"
+                    case 1440:
+                        repeat_text = "🔄 Repeats daily"
+                    case 2880:
+                        repeat_text = "🔄 Repeats every 2 days"
+                    case 4320:
+                        repeat_text = "🔄 Repeats every 3 days"
+                    case 10080:
+                        repeat_text = "🔄 Repeats weekly"
+                    case _:
+                        repeat_text = f"🔄 Repeats every {minutes} minutes"
 
             embed = discord.Embed(
                 title="✅ Notification Set Successfully",
@@ -721,7 +739,7 @@ class RepeatOptionView(discord.ui.View):
 
             embed.set_footer(text="Created at")
             embed.timestamp = datetime.now()
-            
+
             await interaction.response.edit_message(
                 content=None,
                 embed=embed,
@@ -735,11 +753,12 @@ class RepeatOptionView(discord.ui.View):
                 ephemeral=True
             )
 
+
 class RepeatIntervalModal(discord.ui.Modal):
     def __init__(self, repeat_view: RepeatOptionView):
         super().__init__(title="Set Repeat Interval")
         self.repeat_view = repeat_view
-        
+
         self.months = discord.ui.TextInput(
             label="Months",
             placeholder="Enter number of months (e.g., 1)",
@@ -749,7 +768,7 @@ class RepeatIntervalModal(discord.ui.Modal):
             default="0",
             style=discord.TextStyle.short
         )
-        
+
         self.weeks = discord.ui.TextInput(
             label="Weeks",
             placeholder="Enter number of weeks (e.g., 2)",
@@ -759,7 +778,7 @@ class RepeatIntervalModal(discord.ui.Modal):
             default="0",
             style=discord.TextStyle.short
         )
-        
+
         self.days = discord.ui.TextInput(
             label="Days",
             placeholder="Enter number of days (e.g., 3)",
@@ -769,7 +788,7 @@ class RepeatIntervalModal(discord.ui.Modal):
             default="0",
             style=discord.TextStyle.short
         )
-        
+
         self.hours = discord.ui.TextInput(
             label="Hours",
             placeholder="Enter number of hours (e.g., 12)",
@@ -779,7 +798,7 @@ class RepeatIntervalModal(discord.ui.Modal):
             default="0",
             style=discord.TextStyle.short
         )
-        
+
         self.minutes = discord.ui.TextInput(
             label="Minutes",
             placeholder="Enter number of minutes (e.g., 30)",
@@ -828,12 +847,12 @@ class RepeatIntervalModal(discord.ui.Modal):
                 interval_parts.append(f"{hours} hour{'s' if hours > 1 else ''}")
             if minutes > 0:
                 interval_parts.append(f"{minutes} minute{'s' if minutes > 1 else ''}")
-            
+
             if len(interval_parts) > 1:
                 interval_text = ", ".join(interval_parts[:-1]) + " and " + interval_parts[-1]
             else:
                 interval_text = interval_parts[0]
-            
+
             await self.repeat_view.save_notification(interaction, True, total_minutes, interval_text)
 
         except Exception as e:
@@ -842,6 +861,7 @@ class RepeatIntervalModal(discord.ui.Modal):
                 "❌ An error occurred while setting the repeat interval.",
                 ephemeral=True
             )
+
 
 class TextInputModal(discord.ui.Modal):
     def __init__(self, title, label, placeholder, default_value="", max_length=None, style=discord.TextStyle.short):
@@ -859,6 +879,7 @@ class TextInputModal(discord.ui.Modal):
     async def on_submit(self, interaction: discord.Interaction):
         self.value = self.input.value
         await interaction.response.defer()
+
 
 class EmbedEditorView(discord.ui.View):
     def __init__(self, cog, start_date, hour, minute, timezone, original_message):
@@ -882,7 +903,7 @@ class EmbedEditorView(discord.ui.View):
         try:
             example_time = "30 minutes"
             embed = discord.Embed(color=self.embed_data.get("color", discord.Color.blue().value))
-            
+
             if "title" in self.embed_data:
                 title = self.embed_data["title"].replace("%t", example_time).replace("{time}", example_time)
                 embed.title = title
@@ -914,14 +935,15 @@ class EmbedEditorView(discord.ui.View):
                 "• Time will automatically show with appropriate units (minutes/hours/days)\n\n"
                 f"Currently showing '{example_time}' as an example.\n\n"
                 f"**Current Mention Message Preview:**\n"
-                f"{mention_preview}\n\n"               
+                f"{mention_preview}\n\n"
             )
 
             if not interaction.response.is_done():
                 await interaction.response.edit_message(content=content, embed=embed, view=self)
             else:
-                await interaction.followup.edit_message(message_id=interaction.message.id, content=content, embed=embed, view=self)
-            
+                await interaction.followup.edit_message(message_id=interaction.message.id, content=content, embed=embed,
+                                                        view=self)
+
         except Exception as e:
             print(f"Error updating embed: {e}")
             try:
@@ -941,11 +963,11 @@ class EmbedEditorView(discord.ui.View):
             )
             await interaction.response.send_modal(modal)
             await modal.wait()
-            
+
             if modal.value:
                 self.embed_data["mention_message"] = modal.value
                 await self.update_embed(interaction)
-                
+
         except Exception as e:
             print(f"Error in edit_mention_message: {e}")
             await interaction.followup.send("❌ An error occurred while editing the mention message!", ephemeral=True)
@@ -962,11 +984,11 @@ class EmbedEditorView(discord.ui.View):
             )
             await interaction.response.send_modal(modal)
             await modal.wait()
-            
+
             if modal.value:
                 self.embed_data["title"] = modal.value
                 await self.update_embed(interaction)
-                
+
         except Exception as e:
             print(f"Error in edit_title: {e}")
             await interaction.followup.send("❌ An error occurred while editing the title!", ephemeral=True)
@@ -984,11 +1006,11 @@ class EmbedEditorView(discord.ui.View):
             )
             await interaction.response.send_modal(modal)
             await modal.wait()
-            
+
             if modal.value:
                 self.embed_data["description"] = modal.value
                 await self.update_embed(interaction)
-                
+
         except Exception as e:
             print(f"Error in edit_description: {e}")
             await interaction.followup.send("❌ An error occurred while editing the description!", ephemeral=True)
@@ -998,7 +1020,7 @@ class EmbedEditorView(discord.ui.View):
         try:
             current_color = self.embed_data.get('color', discord.Color.blue().value)
             current_hex = f"#{hex(current_color)[2:].zfill(6)}"
-            
+
             modal = TextInputModal(
                 title="Color Code",
                 label="Hex Color Code",
@@ -1008,7 +1030,7 @@ class EmbedEditorView(discord.ui.View):
             )
             await interaction.response.send_modal(modal)
             await modal.wait()
-            
+
             if modal.value:
                 try:
                     hex_value = modal.value.strip('#')
@@ -1017,7 +1039,7 @@ class EmbedEditorView(discord.ui.View):
                     await self.update_embed(interaction)
                 except ValueError:
                     await interaction.followup.send("❌ Invalid color code! Example: #FF0000", ephemeral=True)
-                    
+
         except Exception as e:
             print(f"Error in edit_color: {e}")
             await interaction.followup.send("❌ An error occurred while editing the color!", ephemeral=True)
@@ -1034,11 +1056,11 @@ class EmbedEditorView(discord.ui.View):
             )
             await interaction.response.send_modal(modal)
             await modal.wait()
-            
+
             if modal.value:
                 self.embed_data["footer"] = modal.value
                 await self.update_embed(interaction)
-                
+
         except Exception as e:
             print(f"Error in edit_footer: {e}")
             await interaction.followup.send("❌ An error occurred while editing the footer!", ephemeral=True)
@@ -1055,11 +1077,11 @@ class EmbedEditorView(discord.ui.View):
             )
             await interaction.response.send_modal(modal)
             await modal.wait()
-            
+
             if modal.value:
                 self.embed_data["author"] = modal.value
                 await self.update_embed(interaction)
-                
+
         except Exception as e:
             print(f"Error in edit_author: {e}")
             await interaction.followup.send("❌ An error occurred while editing the author!", ephemeral=True)
@@ -1076,15 +1098,16 @@ class EmbedEditorView(discord.ui.View):
             )
             await interaction.response.send_modal(modal)
             await modal.wait()
-            
+
             if modal.value:
                 if not modal.value.startswith(('http://', 'https://')):
-                    await interaction.followup.send("❌ Invalid URL! URL must start with 'http://' or 'https://'.", ephemeral=True)
+                    await interaction.followup.send("❌ Invalid URL! URL must start with 'http://' or 'https://'.",
+                                                    ephemeral=True)
                     return
 
                 self.embed_data["image_url"] = modal.value
                 await self.update_embed(interaction)
-                
+
         except Exception as e:
             print(f"Error in add_image: {e}")
             await interaction.followup.send("❌ An error occurred while adding the image!", ephemeral=True)
@@ -1101,15 +1124,16 @@ class EmbedEditorView(discord.ui.View):
             )
             await interaction.response.send_modal(modal)
             await modal.wait()
-            
+
             if modal.value:
                 if not modal.value.startswith(('http://', 'https://')):
-                    await interaction.followup.send("❌ Invalid URL! URL must start with 'http://' or 'https://'.", ephemeral=True)
+                    await interaction.followup.send("❌ Invalid URL! URL must start with 'http://' or 'https://'.",
+                                                    ephemeral=True)
                     return
 
                 self.embed_data["thumbnail_url"] = modal.value
                 await self.update_embed(interaction)
-                
+
         except Exception as e:
             print(f"Error in add_thumbnail: {e}")
             await interaction.followup.send("❌ An error occurred while adding the thumbnail!", ephemeral=True)
@@ -1130,7 +1154,7 @@ class EmbedEditorView(discord.ui.View):
                 embed_data,
                 interaction.guild.text_channels
             )
-            
+
         except Exception as e:
             print(f"Error in confirm button: {e}")
             try:
@@ -1153,6 +1177,7 @@ class EmbedEditorView(discord.ui.View):
                 ephemeral=True
             )
 
+
 class MessageTypeView(discord.ui.View):
     def __init__(self, cog, start_date, hour, minute, timezone):
         super().__init__(timeout=300)
@@ -1167,14 +1192,14 @@ class MessageTypeView(discord.ui.View):
     async def embed_message(self, interaction: discord.Interaction, button: discord.ui.Button):
         try:
             example_time = "30 minutes"
-            
+
             embed = discord.Embed(
                 title="Bear Trap Notification",
                 description="Get ready for Bear! Only %t remaining.",
                 color=discord.Color.blue()
             )
             embed.set_footer(text="Bear Trap Notification System")
-            
+
             content = (
                 "📝 **Embed Editor**\n\n"
                 "**Note:** \n"
@@ -1205,7 +1230,7 @@ class MessageTypeView(discord.ui.View):
                 embed=embed,
                 view=view
             )
-            
+
         except Exception as e:
             print(f"Error in embed_message: {e}")
             await interaction.followup.send(
@@ -1240,13 +1265,14 @@ class MessageTypeView(discord.ui.View):
         modal.on_submit = modal_submit
         await interaction.response.send_modal(modal)
 
+
 class TimeSelectModal(discord.ui.Modal):
     def __init__(self, cog: BearTrap):
         super().__init__(title="Set Notification Time")
         self.cog = cog
-        
+
         current_utc = datetime.now(pytz.UTC)
-        
+
         self.start_date = discord.ui.TextInput(
             label="Start Date (DD/MM/YYYY)",
             placeholder="Enter start date (e.g., 25/03/2024)",
@@ -1255,7 +1281,7 @@ class TimeSelectModal(discord.ui.Modal):
             required=True,
             default=current_utc.strftime("%d/%m/%Y")
         )
-        
+
         self.hour = discord.ui.TextInput(
             label="Hour (0-23)",
             placeholder="Enter hour (e.g., 14)",
@@ -1264,7 +1290,7 @@ class TimeSelectModal(discord.ui.Modal):
             required=True,
             default=current_utc.strftime("%H")
         )
-        
+
         self.minute = discord.ui.TextInput(
             label="Minute (0-59)",
             placeholder="Enter minute (e.g., 30)",
@@ -1273,7 +1299,7 @@ class TimeSelectModal(discord.ui.Modal):
             required=True,
             default=current_utc.strftime("%M")
         )
-        
+
         self.timezone = discord.ui.TextInput(
             label="Timezone",
             placeholder="Enter timezone (e.g., UTC, Europe/Istanbul)",
@@ -1301,7 +1327,7 @@ class TimeSelectModal(discord.ui.Modal):
                 start_date = datetime.strptime(self.start_date.value, "%d/%m/%Y")
                 now = datetime.now(timezone)
                 start_date = timezone.localize(start_date)
-                
+
                 if start_date.date() < now.date():
                     await interaction.response.send_message(
                         "❌ Start date cannot be in the past for the selected timezone!",
@@ -1317,7 +1343,7 @@ class TimeSelectModal(discord.ui.Modal):
 
             hour = int(self.hour.value)
             minute = int(self.minute.value)
-            
+
             if not (0 <= hour <= 23 and 0 <= minute <= 59):
                 raise ValueError("Invalid time format")
 
@@ -1328,7 +1354,7 @@ class TimeSelectModal(discord.ui.Modal):
                 minute,
                 self.timezone.value
             )
-            
+
             embed = discord.Embed(
                 title="📝 Select Message Type",
                 description=(
@@ -1362,6 +1388,7 @@ class TimeSelectModal(discord.ui.Modal):
                 "❌ An error occurred while setting the time.",
                 ephemeral=True
             )
+
 
 class NotificationTypeView(discord.ui.View):
     def __init__(self, cog, start_date, hour, minute, timezone, message_data, channel_id, original_message):
@@ -1397,7 +1424,8 @@ class NotificationTypeView(discord.ui.View):
 
     @discord.ui.button(label="Custom Times", style=discord.ButtonStyle.success, custom_id="type_6", row=2)
     async def type_6(self, interaction, button):
-        modal = CustomTimesModal(self.cog, self.start_date, self.hour, self.minute, self.timezone, self.message_data, self.channel_id, self.original_message)
+        modal = CustomTimesModal(self.cog, self.start_date, self.hour, self.minute, self.timezone, self.message_data,
+                                 self.channel_id, self.original_message)
         await interaction.response.send_modal(modal)
 
     async def show_mention_type_menu(self, interaction, notification_type):
@@ -1438,6 +1466,7 @@ class NotificationTypeView(discord.ui.View):
                 ephemeral=True
             )
 
+
 class CustomTimesModal(discord.ui.Modal):
     def __init__(self, cog, start_date, hour, minute, timezone, message_data, channel_id, original_message):
         super().__init__(title="Set Custom Notification Times")
@@ -1449,7 +1478,7 @@ class CustomTimesModal(discord.ui.Modal):
         self.message_data = message_data
         self.channel_id = channel_id
         self.original_message = original_message
-        
+
         self.custom_times = discord.ui.TextInput(
             label="Custom Notification Times",
             placeholder="Enter times in minutes (e.g., 60-20-15-4-2 or 60-20-15-4-2-0)",
@@ -1464,14 +1493,14 @@ class CustomTimesModal(discord.ui.Modal):
         try:
             times_str = self.custom_times.value.strip()
             times = [int(t) for t in times_str.split('-')]
-            
+
             if not all(isinstance(t, int) and t >= 0 for t in times):
                 raise ValueError("All times must be non-negative integers")
-                
+
             if not times:
                 raise ValueError("At least one time must be specified")
-                
-            if not all(times[i] > times[i+1] for i in range(len(times)-1)):
+
+            if not all(times[i] > times[i + 1] for i in range(len(times) - 1)):
                 raise ValueError("Times must be in descending order")
 
             embed = discord.Embed(
@@ -1516,8 +1545,10 @@ class CustomTimesModal(discord.ui.Modal):
                 ephemeral=True
             )
 
+
 class MentionTypeView(discord.ui.View):
-    def __init__(self, cog, start_date, hour, minute, timezone, message_data, channel_id, notification_type, original_message):
+    def __init__(self, cog, start_date, hour, minute, timezone, message_data, channel_id, notification_type,
+                 original_message):
         super().__init__(timeout=300)
         self.cog = cog
         self.start_date = start_date
@@ -1667,12 +1698,13 @@ class MentionTypeView(discord.ui.View):
                 ephemeral=True
             )
 
+
 class MentionSelectMenu(discord.ui.Select):
     def __init__(self, view):
         self.parent_view = view
-        
+
         options = []
-        
+
         options.append(
             discord.SelectOption(
                 label="@everyone",
@@ -1681,7 +1713,7 @@ class MentionSelectMenu(discord.ui.Select):
                 emoji="📢"
             )
         )
-        
+
         options.append(
             discord.SelectOption(
                 label="No Mention",
@@ -1690,14 +1722,14 @@ class MentionSelectMenu(discord.ui.Select):
                 emoji="🔕"
             )
         )
-        
+
         guild = view.original_message.guild
         roles = sorted(
             [role for role in guild.roles if not role.is_default() and not role.managed],
             key=lambda r: r.position,
             reverse=True
         )
-        
+
         for role in roles:
             options.append(
                 discord.SelectOption(
@@ -1707,12 +1739,12 @@ class MentionSelectMenu(discord.ui.Select):
                     emoji="👥"
                 )
             )
-        
+
         members = sorted(
             [member for member in guild.members if not member.bot],
             key=lambda m: m.display_name.lower()
         )
-        
+
         for member in members:
             options.append(
                 discord.SelectOption(
@@ -1722,7 +1754,7 @@ class MentionSelectMenu(discord.ui.Select):
                     emoji="👤"
                 )
             )
-        
+
         super().__init__(
             placeholder="🔍 Search and select who to mention...",
             min_values=1,
@@ -1734,15 +1766,16 @@ class MentionSelectMenu(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction):
         try:
             selected_value = self.values[0]
-            
+
             await self.parent_view.show_mention_type_menu(interaction, selected_value)
-            
+
         except Exception as e:
             print(f"Error in mention selection: {e}")
             await interaction.followup.send(
                 "❌ An error occurred while processing your selection!",
                 ephemeral=True
             )
+
 
 class BearTrapView(discord.ui.View):
     def __init__(self, cog):
@@ -1760,7 +1793,7 @@ class BearTrapView(discord.ui.View):
         if not await self.cog.check_admin(interaction):
             return
 
-        try:            
+        try:
             embed = discord.Embed(
                 title="⏰ Notification Creation Method",
                 description=(
@@ -1797,7 +1830,7 @@ class BearTrapView(discord.ui.View):
 
             web_button = discord.ui.Button(
                 label="Create on Website",
-                emoji="🌐", 
+                emoji="🌐",
                 style=discord.ButtonStyle.success,
                 custom_id="create_in_web"
             )
@@ -1832,7 +1865,7 @@ class BearTrapView(discord.ui.View):
         except Exception as e:
             error_msg = f"[ERROR] Error in set time button: {str(e)}\nType: {type(e)}\nTrace: {traceback.format_exc()}"
             print(error_msg)
-            
+
             try:
                 if not interaction.response.is_done():
                     await interaction.response.send_message(
@@ -1896,37 +1929,39 @@ class BearTrapView(discord.ui.View):
                     }
 
                     mention_type = selected_notif[8]
-                    if mention_type == "everyone":
-                        mention_display = "@everyone"
-                    elif mention_type.startswith("role_"):
-                        role_id = int(mention_type.split('_')[1])
-                        role = select_interaction.guild.get_role(role_id)
-                        mention_display = f"@{role.name}" if role else f"Role: {role_id}"
-                    elif mention_type.startswith("member_"):
-                        member_id = int(mention_type.split('_')[1])
-                        member = select_interaction.guild.get_member(member_id)
-                        mention_display = f"@{member.display_name}" if member else f"Member: {member_id}"
-                    else:
-                        mention_display = "Unknown"
+                    match mention_type:
+                        case "everyone":
+                            mention_display = "@everyone"
+                        case mention_type.startswith("role_"):
+                            role_id = int(mention_type.split('_')[1])
+                            role = select_interaction.guild.get_role(role_id)
+                            mention_display = f"@{role.name}" if role else f"Role: {role_id}"
+                        case mention_type.startswith("member_"):
+                            member_id = int(mention_type.split('_')[1])
+                            member = select_interaction.guild.get_member(member_id)
+                            mention_display = f"@{member.display_name}" if member else f"Member: {member_id}"
+                        case _:
+                            mention_display = "Unknown"
 
-                    if not selected_notif[9]:  
+                    if not selected_notif[9]:
                         repeat_text = "❌ No repeat"
                     else:
-                        minutes = selected_notif[10]  
-                        if minutes == 1:
-                            repeat_text = "🔄 Repeats every minute"
-                        elif minutes == 60:
-                            repeat_text = "🔄 Repeats every hour"
-                        elif minutes == 1440:
-                            repeat_text = "🔄 Repeats daily"
-                        elif minutes == 2880:
-                            repeat_text = "🔄 Repeats every 2 days"
-                        elif minutes == 4320:
-                            repeat_text = "🔄 Repeats every 3 days"
-                        elif minutes == 10080:
-                            repeat_text = "🔄 Repeats weekly"
-                        else:
-                            repeat_text = f"🔄 Repeats every {minutes} minutes"
+                        minutes = selected_notif[10]
+                        match minutes:
+                            case 1:
+                                repeat_text = "🔄 Repeats every minute"
+                            case 60:
+                                repeat_text = "🔄 Repeats every hour"
+                            case 1440:
+                                repeat_text = "🔄 Repeats daily"
+                            case 2880:
+                                repeat_text = "🔄 Repeats every 2 days"
+                            case 4320:
+                                repeat_text = "🔄 Repeats every 3 days"
+                            case 10080:
+                                repeat_text = "🔄 Repeats weekly"
+                            case _:
+                                repeat_text = f"🔄 Repeats every {minutes} minutes"
 
                     embed = discord.Embed(
                         title="🗑️ Remove Notification",
@@ -1944,15 +1979,17 @@ class BearTrapView(discord.ui.View):
                     )
 
                     confirm_view = discord.ui.View()
-                    
+
                     async def confirm_callback(confirm_interaction):
                         try:
-                            self.cog.cursor.execute("DELETE FROM bear_notification_embeds WHERE notification_id = ?", (notification_id,))
-                            
-                            self.cog.cursor.execute("DELETE FROM notification_history WHERE notification_id = ?", (notification_id,))
+                            self.cog.cursor.execute("DELETE FROM bear_notification_embeds WHERE notification_id = ?",
+                                                    (notification_id,))
+
+                            self.cog.cursor.execute("DELETE FROM notification_history WHERE notification_id = ?",
+                                                    (notification_id,))
 
                             self.cog.cursor.execute("DELETE FROM bear_notifications WHERE id = ?", (notification_id,))
-                            
+
                             self.cog.conn.commit()
                             await confirm_interaction.response.edit_message(
                                 content="✅ Notification and its history have been removed successfully.",
@@ -1975,13 +2012,13 @@ class BearTrapView(discord.ui.View):
 
                     confirm_button = discord.ui.Button(label="Confirm", style=discord.ButtonStyle.danger)
                     cancel_button = discord.ui.Button(label="Cancel", style=discord.ButtonStyle.secondary)
-                    
+
                     confirm_button.callback = confirm_callback
                     cancel_button.callback = cancel_callback
-                    
+
                     confirm_view.add_item(confirm_button)
                     confirm_view.add_item(cancel_button)
-                    
+
                     await select_interaction.response.edit_message(embed=embed, view=confirm_view)
                 except Exception as e:
                     print(f"Error in remove notification callback: {e}")
@@ -1993,7 +2030,7 @@ class BearTrapView(discord.ui.View):
             select.callback = select_callback
             view = discord.ui.View()
             view.add_item(select)
-            
+
             await interaction.response.send_message(
                 "Select a notification to remove:",
                 view=view,
@@ -2029,7 +2066,7 @@ class BearTrapView(discord.ui.View):
             options = []
             for notif in notifications:
                 status = "🟢 Enabled" if notif[11] else "🔴 Disabled"
-                
+
                 if "EMBED_MESSAGE:" in notif[6]:
                     self.cog.cursor.execute("""
                         SELECT title, description 
@@ -2037,7 +2074,7 @@ class BearTrapView(discord.ui.View):
                         WHERE notification_id = ?
                     """, (notif[0],))
                     embed_data = self.cog.cursor.fetchone()
-                    
+
                     if embed_data and embed_data[0]:
                         display_description = f"📝 Embed: {embed_data[0]}"
                     else:
@@ -2076,37 +2113,39 @@ class BearTrapView(discord.ui.View):
                     }
 
                     mention_type = selected_notif[8]
-                    if mention_type == "everyone":
-                        mention_display = "@everyone"
-                    elif mention_type.startswith("role_"):
-                        role_id = int(mention_type.split('_')[1])
-                        role = select_interaction.guild.get_role(role_id)
-                        mention_display = f"@{role.name}" if role else f"Role: {role_id}"
-                    elif mention_type.startswith("member_"):
-                        member_id = int(mention_type.split('_')[1])
-                        member = select_interaction.guild.get_member(member_id)
-                        mention_display = f"@{member.display_name}" if member else f"Member: {member_id}"
-                    else:
-                        mention_display = "Unknown"
+                    match mention_type:
+                        case "everyone":
+                            mention_display = "@everyone"
+                        case mention_type.startswith("role_"):
+                            role_id = int(mention_type.split('_')[1])
+                            role = select_interaction.guild.get_role(role_id)
+                            mention_display = f"@{role.name}" if role else f"Role: {role_id}"
+                        case mention_type.startswith("member_"):
+                            member_id = int(mention_type.split('_')[1])
+                            member = select_interaction.guild.get_member(member_id)
+                            mention_display = f"@{member.display_name}" if member else f"Member: {member_id}"
+                        case _:
+                            mention_display = "Unknown"
 
-                    if not selected_notif[9]:  
+                    if not selected_notif[9]:
                         repeat_text = "❌ No repeat"
                     else:
-                        minutes = selected_notif[10]  
-                        if minutes == 1:
-                            repeat_text = "🔄 Repeats every minute"
-                        elif minutes == 60:
-                            repeat_text = "🔄 Repeats every hour"
-                        elif minutes == 1440:
-                            repeat_text = "🔄 Repeats daily"
-                        elif minutes == 2880:
-                            repeat_text = "🔄 Repeats every 2 days"
-                        elif minutes == 4320:
-                            repeat_text = "🔄 Repeats every 3 days"
-                        elif minutes == 10080:
-                            repeat_text = "🔄 Repeats weekly"
-                        else:
-                            repeat_text = f"🔄 Repeats every {minutes} minutes"
+                        minutes = selected_notif[10]
+                        match minutes:
+                            case 1:
+                                repeat_text = "🔄 Repeats every minute"
+                            case 60:
+                                repeat_text = "🔄 Repeats every hour"
+                            case 1440:
+                                repeat_text = "🔄 Repeats daily"
+                            case 2880:
+                                repeat_text = "🔄 Repeats every 2 days"
+                            case 4320:
+                                repeat_text = "🔄 Repeats every 3 days"
+                            case 10080:
+                                repeat_text = "🔄 Repeats weekly"
+                            case _:
+                                repeat_text = f"🔄 Repeats every {minutes} minutes"
 
                     embed_data = None
                     if "EMBED_MESSAGE:" in selected_notif[6]:
@@ -2148,7 +2187,7 @@ class BearTrapView(discord.ui.View):
                             description=embed_data['description'] if embed_data['description'] else "No Description",
                             color=embed_data['color'] if embed_data['color'] else discord.Color.blue()
                         )
-                        
+
                         if embed_data['image_url']:
                             preview_embed.set_image(url=embed_data['image_url'])
                         if embed_data['thumbnail_url']:
@@ -2177,7 +2216,7 @@ class BearTrapView(discord.ui.View):
                             'thumbnail_url': embed_data['thumbnail_url'],
                             'mention_message': embed_data['mention_message']
                         }
-                        
+
                         embed_json = json.dumps(copyable_data, indent=2)
 
                         view = discord.ui.View()
@@ -2196,14 +2235,14 @@ class BearTrapView(discord.ui.View):
                     else:
                         view = discord.ui.View()
                         view.add_item(select)
-                        
+
                         message_preview = None
                         if "PLAIN_MESSAGE:" in selected_notif[6]:
                             message_preview = selected_notif[6].replace("PLAIN_MESSAGE:", "")
-                        
+
                         await select_interaction.response.edit_message(
-                            content="**📋 Notification Details**" + 
-                                  (f"\n\n**Message Preview:**\n{message_preview}" if message_preview else ""),
+                            content="**📋 Notification Details**" +
+                                    (f"\n\n**Message Preview:**\n{message_preview}" if message_preview else ""),
                             embed=details_embed,
                             view=view
                         )
@@ -2217,7 +2256,7 @@ class BearTrapView(discord.ui.View):
 
             select.callback = select_callback
             view.add_item(select)
-            
+
             await interaction.response.send_message(
                 "Select a notification to view details:",
                 view=view,
@@ -2270,7 +2309,7 @@ class BearTrapView(discord.ui.View):
                 notification_id = int(select_interaction.data["values"][0])
                 current_status = next(n[11] for n in notifications if n[0] == notification_id)
                 new_status = not current_status
-                
+
                 if await self.cog.toggle_notification(notification_id, new_status):
                     status_text = "enabled" if new_status else "disabled"
                     embed = discord.Embed(
@@ -2288,7 +2327,7 @@ class BearTrapView(discord.ui.View):
             select.callback = select_callback
             view = discord.ui.View()
             view.add_item(select)
-            
+
             await interaction.response.send_message(
                 "Select a notification to toggle:",
                 view=view,
@@ -2345,7 +2384,7 @@ class BearTrapView(discord.ui.View):
             options = []
             for notif in notifications:
                 status = "🟢 Enabled" if notif[11] else "🔴 Disabled"
-                
+
                 if "EMBED_MESSAGE:" in notif[6]:
                     self.cog.cursor.execute("""
                         SELECT title, description 
@@ -2353,7 +2392,7 @@ class BearTrapView(discord.ui.View):
                         WHERE notification_id = ?
                     """, (notif[0],))
                     embed_data = self.cog.cursor.fetchone()
-                    
+
                     if embed_data and embed_data[0]:
                         display_description = f"📝 Embed: {embed_data[0]}"
                     else:
@@ -2397,7 +2436,7 @@ class BearTrapView(discord.ui.View):
             select.callback = select_callback
             view = discord.ui.View()
             view.add_item(select)
-            
+
             await interaction.response.send_message(
                 "Select the notification you want to edit:",
                 view=view,
@@ -2411,6 +2450,7 @@ class BearTrapView(discord.ui.View):
                 ephemeral=True
             )
 
+
 class ChannelSelectView(discord.ui.View):
     def __init__(self, cog, start_date, hour, minute, timezone, message_data, original_message):
         super().__init__(timeout=300)
@@ -2421,8 +2461,9 @@ class ChannelSelectView(discord.ui.View):
         self.timezone = timezone
         self.message_data = message_data
         self.original_message = original_message
-        
+
         self.add_item(ChannelSelectMenu(self))
+
 
 class ChannelSelectMenu(discord.ui.ChannelSelect):
     def __init__(self, view):
@@ -2510,11 +2551,12 @@ class ChannelSelectMenu(discord.ui.ChannelSelect):
                     ephemeral=True
                 )
 
+
 class ImportEmbedModal(discord.ui.Modal):
     def __init__(self, embed_view):
         super().__init__(title="Import Embed")
         self.embed_view = embed_view
-        
+
         self.embed_code = discord.ui.TextInput(
             label="Embed Code",
             placeholder="Paste the embed code here...",
@@ -2526,7 +2568,7 @@ class ImportEmbedModal(discord.ui.Modal):
     async def on_submit(self, interaction: discord.Interaction):
         try:
             embed_data = json.loads(self.embed_code.value)
-            
+
             self.embed_view.embed_data.update({
                 'title': embed_data.get('title') or '',
                 'description': embed_data.get('description') or '',
@@ -2537,13 +2579,13 @@ class ImportEmbedModal(discord.ui.Modal):
                 'thumbnail_url': embed_data.get('thumbnail_url') or '',
                 'mention_message': embed_data.get('mention_message') or '@tag'
             })
-            
+
             await self.embed_view.update_embed(interaction)
             await interaction.followup.send(
                 "✅ Embed imported successfully!",
                 ephemeral=True
             )
-            
+
         except json.JSONDecodeError:
             await interaction.response.send_message(
                 "❌ Invalid embed code format. Please make sure you copied the entire code correctly.",
@@ -2565,5 +2607,6 @@ class ImportEmbedModal(discord.ui.Modal):
             except:
                 pass
 
+
 async def setup(bot):
-    await bot.add_cog(BearTrap(bot)) 
+    await bot.add_cog(BearTrap(bot))

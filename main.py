@@ -1,9 +1,10 @@
 import warnings
+
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 import sys
-import os
 import subprocess
+
 
 def check_and_install_requirements():
     required_packages = {
@@ -16,7 +17,7 @@ def check_and_install_requirements():
         'pytz': 'pytz',
         'pyzipper': 'pyzipper'
     }
-    
+
     def install_package(package_name):
         try:
             print(f"Installing {package_name}...")
@@ -51,9 +52,10 @@ def check_and_install_requirements():
         return True
     return False
 
+
 if __name__ == "__main__":
     check_and_install_requirements()
-    
+
     import discord
     from discord.ext import commands
     import sqlite3
@@ -61,13 +63,16 @@ if __name__ == "__main__":
     import requests
     import asyncio
     import pkg_resources
+    import os
 
-    VERSION_URL = "https://raw.githubusercontent.com/Reloisback/Whiteout-Survival-Discord-Bot/refs/heads/main/autoupdateinfo.txt"
+    VERSION_URL = "https://raw.githubusercontent.com/SpiritingAuto04/Whiteout-Survival-Discord-Bot/refs/heads/main/autoupdateinfo.txt"
+
 
     def restart_bot():
         print(Fore.YELLOW + "\nRestarting bot..." + Style.RESET_ALL)
         python = sys.executable
         os.execl(python, python, *sys.argv)
+
 
     def setup_version_table():
         try:
@@ -83,17 +88,19 @@ if __name__ == "__main__":
         except Exception as e:
             print(Fore.RED + f"Error creating version table: {e}" + Style.RESET_ALL)
 
+
     async def check_and_update_files():
         try:
             try:
                 response = requests.get(VERSION_URL)
                 if response.status_code == 200:
-                    source_url = "https://raw.githubusercontent.com/Reloisback/Whiteout-Survival-Discord-Bot/refs/heads/main"
+                    source_url = "https://raw.githubusercontent.com/SpiritingAuto04/Whiteout-Survival-Discord-Bot/refs/heads/main"
                     print(Fore.GREEN + "Connected to GitHub successfully." + Style.RESET_ALL)
                 else:
                     raise requests.RequestException
             except requests.RequestException:
-                print(Fore.YELLOW + "Cannot connect to GitHub, trying alternative source (wosland.com)..." + Style.RESET_ALL)
+                print(
+                    Fore.YELLOW + "Cannot connect to GitHub, trying backup source (wosland.com)..." + Style.RESET_ALL)
                 alt_version_url = "https://wosland.com/wosdc/autoupdateinfo.txt"
                 response = requests.get(alt_version_url)
                 if response.status_code == 200:
@@ -134,11 +141,11 @@ if __name__ == "__main__":
             updates_needed = []
             with sqlite3.connect('db/settings.sqlite') as conn:
                 cursor = conn.cursor()
-                
+
                 for file_name, new_version in documents.items():
                     cursor.execute("SELECT version FROM versions WHERE file_name = ?", (file_name,))
                     current_file_version = cursor.fetchone()
-                    
+
                     if not current_file_version:
                         updates_needed.append((file_name, new_version))
                         if file_name == 'main.py':
@@ -150,7 +157,8 @@ if __name__ == "__main__":
 
                 if updates_needed:
                     print(Fore.YELLOW + "\nUpdates available!" + Style.RESET_ALL)
-                    print(Fore.YELLOW + "\nIf this is your first installation and you see File and No version, please update!" + Style.RESET_ALL)
+                    print(
+                        Fore.YELLOW + "\nIf this is your first installation and you see File and No version, please update!" + Style.RESET_ALL)
                     print("\nFiles to update:")
                     for file_name, new_version in updates_needed:
                         cursor.execute("SELECT version FROM versions WHERE file_name = ?", (file_name,))
@@ -163,23 +171,24 @@ if __name__ == "__main__":
                         print(f"• {note}")
 
                     if main_py_updated:
-                        print(Fore.YELLOW + "\nNOTE: This update includes changes to main.py. Bot will restart after update." + Style.RESET_ALL)
+                        print(
+                            Fore.YELLOW + "\nNOTE: This update includes changes to main.py. Bot will restart after update." + Style.RESET_ALL)
 
                     response = input("\nDo you want to update now? (y/n): ").lower()
                     if response == 'y':
                         needs_restart = False
-                        
+
                         for file_name, new_version in updates_needed:
                             if file_name.strip() != 'main.py':
                                 file_url = f"{source_url}/{file_name}"
                                 file_response = requests.get(file_url)
-                                
+
                                 if file_response.status_code == 200:
                                     os.makedirs(os.path.dirname(file_name), exist_ok=True)
                                     content = file_response.text.rstrip('\n')
                                     with open(file_name, 'w', encoding='utf-8', newline='') as f:
                                         f.write(content)
-                                    
+
                                     cursor.execute("""
                                         INSERT OR REPLACE INTO versions (file_name, version, is_main)
                                         VALUES (?, ?, ?)
@@ -188,17 +197,17 @@ if __name__ == "__main__":
                         if main_py_updated:
                             main_file_url = f"{source_url}/main.py"
                             main_response = requests.get(main_file_url)
-                            
+
                             if main_response.status_code == 200:
                                 content = main_response.text.rstrip('\n')
                                 with open('main.py.new', 'w', encoding='utf-8', newline='') as f:
                                     f.write(content)
-                                
+
                                 cursor.execute("""
                                     INSERT OR REPLACE INTO versions (file_name, version, is_main)
                                     VALUES (?, ?, 1)
                                 """, ('main.py', documents['main.py']))
-                                
+
                                 needs_restart = True
 
                         conn.commit()
@@ -220,19 +229,21 @@ if __name__ == "__main__":
             print(Fore.RED + f"Error during version check: {e}" + Style.RESET_ALL)
             return False
 
+
     class CustomBot(commands.Bot):
         async def on_error(self, event_name, *args, **kwargs):
             if event_name == "on_interaction":
                 error = sys.exc_info()[1]
                 if isinstance(error, discord.NotFound) and error.code == 10062:
                     return
-            
+
             await super().on_error(event_name, *args, **kwargs)
 
         async def on_command_error(self, ctx, error):
             if isinstance(error, discord.NotFound) and error.code == 10062:
                 return
             await super().on_command_error(ctx, error)
+
 
     intents = discord.Intents.default()
     intents.message_content = True
@@ -260,11 +271,13 @@ if __name__ == "__main__":
         "conn_changes": "db/changes.sqlite",
         "conn_users": "db/users.sqlite",
         "conn_settings": "db/settings.sqlite",
+        "conn_cogs": "db/cogs.sqlite"
     }
 
     connections = {name: sqlite3.connect(path) for name, path in databases.items()}
 
     print(Fore.GREEN + "Database connections have been successfully established." + Style.RESET_ALL)
+
 
     def create_tables():
         with connections["conn_changes"] as conn_changes:
@@ -328,12 +341,21 @@ if __name__ == "__main__":
                 name TEXT
             )''')
 
+        """with connections['conn_cogs'] as conn_cogs:
+            conn_cogs.execute('''CREATE TABLE IF NOT EXISTS cogsettings (
+            cog_id INTEGER PRIMARY KEY,
+            guild_id INTEGER,
+            cog_name TEXT,
+            cog_status TEXT
+            )''')"""
+
         print(Fore.GREEN + "All tables checked." + Style.RESET_ALL)
 
-    create_tables()
-    setup_version_table()  
 
-    async def load_cogs():
+    create_tables()
+    setup_version_table()
+
+    '''async def load_cogs():
         await bot.load_extension("cogs.olddb")
         await bot.load_extension("cogs.control")
         await bot.load_extension("cogs.alliance")
@@ -350,22 +372,47 @@ if __name__ == "__main__":
         await bot.load_extension("cogs.id_channel")
         await bot.load_extension("cogs.backup_operations")
         await bot.load_extension("cogs.bear_trap_editor")
+        await bot.load_extension("cogs.verify")'''
+
+
+    async def load_cogs():
+        '''conn = sqlite3.connect("db/cogs.sqlite")
+        cursor = conn.cursor()
+
+        try:
+            for file in cursor.execute("SELECT cog_id"):
+                if file is None:'''
+
+        p = "\cogs"
+        p = fr"{os.path.join(os.getcwd(), p)}"
+        with open(p):
+                try:
+                    for file in os.listdir():
+                        if file.endswith("*.py"):
+                            await bot.load_extension(file)
+                        else:
+                            pass
+                except Exception as e:
+                    print(f"Exception below: \n{e}")
+
 
     @bot.event
     async def on_ready():
         try:
             print(f"{Fore.GREEN}Logged in as {Fore.CYAN}{bot.user}{Style.RESET_ALL}")
-            synced = await bot.tree.sync()
+            await bot.tree.sync()
         except Exception as e:
             print(f"Error syncing commands: {e}")
+
 
     async def main():
         if check_and_install_requirements():
             print(f"{Fore.GREEN}Library installations completed, starting bot...{Style.RESET_ALL}")
-        
+
         await check_and_update_files()
         await load_cogs()
         await bot.start(bot_token)
+
 
     if __name__ == "__main__":
         asyncio.run(main())

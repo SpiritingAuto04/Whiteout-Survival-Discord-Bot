@@ -2,10 +2,11 @@ import discord
 from discord.ext import commands
 import sqlite3
 
+
 class OtherFeatures(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        
+
     async def show_other_features_menu(self, interaction: discord.Interaction):
         try:
             embed = discord.Embed(
@@ -31,14 +32,14 @@ class OtherFeatures(commands.Cog):
                 ),
                 color=discord.Color.blue()
             )
-            
+
             view = OtherFeaturesView(self)
-            
+
             try:
                 await interaction.response.edit_message(embed=embed, view=view)
             except discord.InteractionResponded:
                 pass
-                
+
         except Exception as e:
             print(f"Error in show_other_features_menu: {e}")
             if not interaction.response.is_done():
@@ -46,6 +47,7 @@ class OtherFeatures(commands.Cog):
                     "❌ An error occurred. Please try again.",
                     ephemeral=True
                 )
+
 
 class OtherFeaturesView(discord.ui.View):
     def __init__(self, cog):
@@ -143,5 +145,6 @@ class OtherFeaturesView(discord.ui.View):
                 ephemeral=True
             )
 
+
 async def setup(bot):
-    await bot.add_cog(OtherFeatures(bot)) 
+    await bot.add_cog(OtherFeatures(bot))

@@ -14,6 +14,7 @@ import pyzipper
 import traceback
 import ssl
 
+
 class BackupOperations(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -29,7 +30,7 @@ class BackupOperations(commands.Cog):
         os.makedirs("db", exist_ok=True)
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        
+
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS backup_passwords (
                 discord_id TEXT PRIMARY KEY,
@@ -37,14 +38,15 @@ class BackupOperations(commands.Cog):
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        
+
         conn.commit()
         conn.close()
 
     def cog_unload(self):
         self.automatic_backup_loop.cancel()
 
-    def log_backup(self, admin_id: str, success: bool, backup_type: str, backup_url: str = None, error_message: str = None):
+    def log_backup(self, admin_id: str, success: bool, backup_type: str, backup_url: str = None,
+                   error_message: str = None):
         try:
             timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             log_message = f"[{timestamp}] "
@@ -55,7 +57,6 @@ class BackupOperations(commands.Cog):
                 log_message += f" | Download Link: {backup_url}"
             if error_message:
                 log_message += f" | Error: {error_message}"
-            log_message += "\n"
             log_message += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
 
             with open(self.log_path, 'a', encoding='utf-8') as log_file:
@@ -170,12 +171,12 @@ Created at: {timestamp}
 Discord ID: {user_id}
 Contains: All SQLite database files
 ----------------
-🤖 WOS Discord Bot by Reloisback
+🤖 WOS Discord Bot by spiritingauto04
 
 📱 Social Links:
-• GitHub: https://github.com/Reloisback/Whiteout-Survival-Discord-Bot
-• Discord: https://discord.gg/h8w6N6my4a
-• Support: https://buymeacoffee.com/reloisback
+• GitHub: https://github.com/SpiritingAuto04/Whiteout-Survival-Discord-Bot
+• Discord: N/A
+• Support: https://ko-fi.com/spiritingauto
 
 Thank you for using our bot! ❤️
 """
@@ -188,7 +189,7 @@ Thank you for using our bot! ❤️
 📂 Content: SQLite Database Files
 🔐 Password Protected: Yes
 ━━━━━━━━━━━━━━━━━━━━━━
-ℹ️ This backup was created by WOS Discord Bot developed by Reloisback.
+ℹ️ This backup was created by WOS Discord Bot developed by SpiritingAuto04.
 ⚠️ Use your backup password from the Backup menu to open this file.
 
 📱 Social Media:
@@ -200,7 +201,8 @@ Thank you for using our bot! ❤️
                     zipf.comment = comment
 
                 secured_zip = os.path.join(temp_dir, f"secured_{zip_filename}")
-                with pyzipper.AESZipFile(secured_zip, 'w', compression=pyzipper.ZIP_LZMA, encryption=pyzipper.WZ_AES) as zf:
+                with pyzipper.AESZipFile(secured_zip, 'w', compression=pyzipper.ZIP_LZMA,
+                                         encryption=pyzipper.WZ_AES) as zf:
                     zf.setpassword(backup_password.encode())
                     with zipfile.ZipFile(zip_path, 'r') as normal_zip:
                         zf.comment = normal_zip.comment
@@ -223,9 +225,10 @@ Thank you for using our bot! ❤️
                         data.add_field('file', f)
                         data.add_field('discord_id', str(user_id))
                         data.add_field('timestamp', timestamp.strftime('%Y-%m-%d %H:%M:%S'))
-                        
+
                         headers = {'X-API-Key': self.api_key}
-                        async with session.post(f"{self.api_url}?action=upload", data=data, headers=headers) as response:
+                        async with session.post(f"{self.api_url}?action=upload", data=data,
+                                                headers=headers) as response:
                             if response.status == 200:
                                 result = await response.json()
                                 file_url = result.get('file_url')
@@ -259,6 +262,7 @@ Thank you for using our bot! ❤️
         except Exception as e:
             traceback.print_exc()
             return None
+
 
 class BackupView(discord.ui.View):
     def __init__(self, cog):
@@ -330,7 +334,7 @@ class BackupView(discord.ui.View):
     async def manual_backup(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(ephemeral=True)
         backup_url = await self.cog.create_backup(str(interaction.user.id))
-        
+
         if backup_url:
             embed = discord.Embed(
                 title="💾 Manual Backup",
@@ -352,7 +356,8 @@ class BackupView(discord.ui.View):
         else:
             conn = sqlite3.connect(self.cog.db_path)
             cursor = conn.cursor()
-            cursor.execute("SELECT backup_password FROM backup_passwords WHERE discord_id = ?", (str(interaction.user.id),))
+            cursor.execute("SELECT backup_password FROM backup_passwords WHERE discord_id = ?",
+                           (str(interaction.user.id),))
             has_password = cursor.fetchone() is not None
             conn.close()
 
@@ -377,6 +382,7 @@ class BackupView(discord.ui.View):
         if other_features_cog:
             await other_features_cog.show_other_features_menu(interaction)
 
+
 class BackupListView(discord.ui.View):
     def __init__(self, pages, user_id, cog):
         super().__init__(timeout=None)
@@ -385,7 +391,7 @@ class BackupListView(discord.ui.View):
         self.user_id = user_id
         self.cog = cog
         self.update_buttons()
-        
+
         if self.pages and len(self.pages) > 0:
             current_page_data = self.pages[self.current_page]
             dates = current_page_data[1]
@@ -405,10 +411,10 @@ class BackupListView(discord.ui.View):
     async def previous_page(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.user_id:
             return
-        
+
         self.current_page = max(0, self.current_page - 1)
         self.update_buttons()
-        
+
         current_page_data = self.pages[self.current_page]
         dates = current_page_data[1]
         self.select_date.options = [
@@ -418,17 +424,17 @@ class BackupListView(discord.ui.View):
                 description=f"View backups from {date}"
             ) for date in dates
         ]
-        
+
         await interaction.response.edit_message(embed=self.pages[self.current_page][0], view=self)
 
     @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.secondary, row=0)
     async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.user_id:
             return
-            
+
         self.current_page = min(len(self.pages) - 1, self.current_page + 1)
         self.update_buttons()
-        
+
         current_page_data = self.pages[self.current_page]
         dates = current_page_data[1]
         self.select_date.options = [
@@ -438,7 +444,7 @@ class BackupListView(discord.ui.View):
                 description=f"View backups from {date}"
             ) for date in dates
         ]
-        
+
         await interaction.response.edit_message(embed=self.pages[self.current_page][0], view=self)
 
     @discord.ui.select(
@@ -459,7 +465,7 @@ class BackupListView(discord.ui.View):
 
         backup_pages = []
         for i in range(0, len(backups), 5):
-            page_backups = backups[i:i+5]
+            page_backups = backups[i:i + 5]
             embed = discord.Embed(
                 title=f"📋 Backup List for {selected_date}",
                 color=discord.Color.blue()
@@ -486,6 +492,7 @@ class BackupListView(discord.ui.View):
         for item in self.children:
             item.disabled = True
 
+
 class BackupDetailView(discord.ui.View):
     def __init__(self, pages, user_id, parent_view):
         super().__init__(timeout=None)
@@ -503,7 +510,7 @@ class BackupDetailView(discord.ui.View):
     async def previous_page(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.user_id:
             return
-        
+
         self.current_page = max(0, self.current_page - 1)
         self.update_buttons()
         await interaction.response.edit_message(embed=self.pages[self.current_page], view=self)
@@ -512,7 +519,7 @@ class BackupDetailView(discord.ui.View):
     async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.user_id:
             return
-            
+
         self.current_page = min(len(self.pages) - 1, self.current_page + 1)
         self.update_buttons()
         await interaction.response.edit_message(embed=self.pages[self.current_page], view=self)
@@ -521,7 +528,7 @@ class BackupDetailView(discord.ui.View):
     async def back_to_weekly(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.user_id:
             return
-            
+
         await interaction.response.edit_message(
             embed=self.parent_view.pages[self.parent_view.current_page][0],
             view=self.parent_view
@@ -536,6 +543,7 @@ class BackupDetailView(discord.ui.View):
     async def on_timeout(self):
         for item in self.children:
             item.disabled = True
+
 
 class BackupPasswordModal(discord.ui.Modal, title="Create Backup Password"):
     def __init__(self, cog):
@@ -553,12 +561,12 @@ class BackupPasswordModal(discord.ui.Modal, title="Create Backup Password"):
     async def on_submit(self, interaction: discord.Interaction):
         conn = sqlite3.connect(self.cog.db_path)
         cursor = conn.cursor()
-        
+
         cursor.execute(
             "INSERT OR REPLACE INTO backup_passwords (discord_id, backup_password) VALUES (?, ?)",
             (str(interaction.user.id), self.password.value)
         )
-        
+
         conn.commit()
         conn.close()
 
@@ -602,6 +610,7 @@ class BackupPasswordModal(discord.ui.Modal, title="Create Backup Password"):
 
         except Exception as e:
             print(f"Error sending admin notifications: {e}")
+
 
 async def setup(bot):
     await bot.add_cog(BackupOperations(bot))
