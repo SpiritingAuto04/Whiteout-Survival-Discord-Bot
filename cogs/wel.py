@@ -166,7 +166,7 @@ class GNCommands(commands.Cog):
         )
 
     @app_commands.command(name="role", description="Learn the ID of a role")
-    @app_commands.describe(channel="The role you want to learn the ID of")
+    @app_commands.describe(role="The role you want to learn the ID of")
     async def role(self, interaction: discord.Interaction, role: discord.Role):
         await interaction.response.send_message(
             f"The ID of the selected role is: {role.id}",
