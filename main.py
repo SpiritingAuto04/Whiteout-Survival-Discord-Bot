@@ -64,8 +64,18 @@ if __name__ == "__main__":
     import asyncio
     import pkg_resources
     import os
+    from random import choice, randint
+    from asyncio import sleep
 
     VERSION_URL = "https://raw.githubusercontent.com/SpiritingAuto04/Whiteout-Survival-Discord-Bot/refs/heads/main/autoupdateinfo.txt"
+
+    custom_statuses = [
+        discord.Activity(name="https://wosland.com for new gift codes", type=discord.ActivityType.watching),
+        discord.Activity(name="Bear Trap", type=discord.ActivityType.watching),
+        discord.Activity(name="Drama in World Chat", type=discord.ActivityType.watching),
+
+        discord.Activity(name=f"in {randint(900, 2000)}", type=discord.ActivityType.playing)
+    ]
 
 
     def restart_bot():
@@ -372,7 +382,8 @@ if __name__ == "__main__":
         await bot.load_extension("cogs.id_channel")
         await bot.load_extension("cogs.backup_operations")
         await bot.load_extension("cogs.bear_trap_editor")
-        await bot.load_extension("cogs.verify")
+        # await bot.load_extension("cogs.verify") # TODO Build verify module for non-test release. (In progress)
+
 
 
     """async def load_cogs():
@@ -383,17 +394,22 @@ if __name__ == "__main__":
             for file in cursor.execute("SELECT cog_id"):
                 if file is None:'''
 
-        p = "\cogs"
-        p = fr"{os.path.join(os.getcwd(), p)}"
-        with open(p):
+        p = "cogs"
+        p = fr"{os.path.join(os.getcwd(), p)}/"
+        extension = ".py"
+        # with open(os.path.isdir(p)):
+        for file in os.listdir(p):
+            # if os.path.splitext(file) in extension:
+            if pathlib.Path(file).suffix == extension:
+                print(p+file)
                 try:
-                    for file in os.listdir():
-                        if file.endswith("*.py"):
-                            await bot.load_extension(file)
-                        else:
-                            pass
+                    await bot.load_extension(p+file)
+                    print(f"Successfully loaded {file}")
                 except Exception as e:
-                    print(f"Exception below: \n{e}")"""
+                    print(e)
+                    pass
+            else:
+                print(f"Passed on {file}")""" # TODO Build the cogs from database to allow different servers to have different configs
 
 
     @bot.event
@@ -403,6 +419,15 @@ if __name__ == "__main__":
             await bot.tree.sync()
         except Exception as e:
             print(f"Error syncing commands: {e}")
+
+        while True:
+            try:
+                await bot.change_presence(activity=choice(custom_statuses))
+                print("[MONITOR] Changed Presence")
+            except Exception as e:
+                print(f"[MONITOR] Failed to change presence. Below is error:\n{e}")
+
+            await sleep(500)
 
 
     async def main():

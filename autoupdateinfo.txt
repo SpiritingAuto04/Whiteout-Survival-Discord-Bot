@@ -1,6 +1,6 @@
 Version= V4.6
 Documants;
-main.py = V4.7
+main.py = V4.8
 cogs/alliance.py = V4.3
 cogs/alliance_member_operations.py = V4.4
 cogs/bot_operations.py = V4.3
@@ -25,3 +25,4 @@ Updated Info;
 - Refactored and optimised bot code
 - Introduced Role ID optimisation to where it can handle multiple servers with multiple alliances
 - Added a Role ID command to learn the ID of a role
+- Added several custom statuses with one linking to wosland as a tribute to the original developer this is based off
