@@ -7,12 +7,13 @@ import pytz
 import urllib.parse
 import traceback
 
+
 class CodeInputModal(discord.ui.Modal):
     def __init__(self, editor_cog, notification_id):
         super().__init__(title="Enter Embed Code")
         self.editor_cog = editor_cog
         self.notification_id = notification_id
-        
+
         self.code_input = discord.ui.TextInput(
             label="Code from Web Panel",
             placeholder="Paste your code here...",
@@ -58,7 +59,8 @@ class CodeInputModal(discord.ui.Modal):
                     self.modal = modal
 
                 @discord.ui.button(label="Select Channel and Tag", style=discord.ButtonStyle.primary, emoji="🔄")
-                async def select_channel_mention(self, button_interaction: discord.Interaction, button: discord.ui.Button):
+                async def select_channel_mention(self, button_interaction: discord.Interaction,
+                                                 button: discord.ui.Button):
                     view = ChannelMentionSelectView(self.modal.editor_cog, self.modal.notification_id, embed_data)
                     embed = discord.Embed(
                         title="📝 Channel Selection",
@@ -81,7 +83,7 @@ class CodeInputModal(discord.ui.Modal):
                         embed_data,
                         skip_channel_mention=True
                     )
-                    
+
                     if success:
                         result_embed = discord.Embed(
                             title="✅ Notification Updated",
@@ -119,7 +121,7 @@ class CodeInputModal(discord.ui.Modal):
                         channel_id, mention_type = result
                         channel = interaction.guild.get_channel(channel_id)
                         mention_display = self.get_mention_display(interaction.guild, mention_type)
-                        
+
                         info_text += (
                             "\n\n**Current Settings**\n"
                             f"📢 Channel: {channel.mention if channel else 'Unknown'}\n"
@@ -144,17 +146,20 @@ class CodeInputModal(discord.ui.Modal):
             )
 
     def get_mention_display(self, guild, mention_type):
-        if mention_type == "everyone":
-            return "@everyone"
-        elif mention_type.startswith("role_"):
-            role_id = int(mention_type.split('_')[1])
-            role = guild.get_role(role_id)
-            return f"@{role.name}" if role else f"Role: {role_id}"
-        elif mention_type.startswith("member_"):
-            member_id = int(mention_type.split('_')[1])
-            member = guild.get_member(member_id)
-            return f"@{member.display_name}" if member else f"Member: {member_id}"
-        return "No Mention"
+        match mention_type:
+            case "everyone":
+                return "@everyone"
+            case mention_type.startswith("role_"):
+                role_id = int(mention_type.split('_')[1])
+                role = guild.get_role(role_id)
+                return f"@{role.name}" if role else f"Role: {role_id}"
+            case mention_type.startswith("member_"):
+                member_id = int(mention_type.split('_')[1])
+                member = guild.get_member(member_id)
+                return f"@{member.display_name}" if member else f"Member: {member_id}"
+            case _:
+                return "No Mention"
+
 
 class NotificationEditView(discord.ui.View):
     def __init__(self, editor_cog, notification_id):
@@ -179,7 +184,7 @@ class NotificationEditView(discord.ui.View):
                 LEFT JOIN bear_notification_embeds e ON n.id = e.notification_id 
                 WHERE n.id = ? AND n.guild_id = ?
             """, (self.notification_id, interaction.guild_id))
-            
+
             result = bear_trap.cursor.fetchone()
             if not result:
                 await interaction.response.send_message(
@@ -200,14 +205,17 @@ class NotificationEditView(discord.ui.View):
                 'author': result[24] if result[24] else None,
                 'mention_message': result[25] if result[25] else "30 minutes @tag sa as",
                 'notification': {
-                    'date': result[15].strftime('%Y-%m-%d') if isinstance(result[15], datetime) else datetime.fromisoformat(str(result[15])).strftime('%Y-%m-%d'),
+                    'date': result[15].strftime('%Y-%m-%d') if isinstance(result[15],
+                                                                          datetime) else datetime.fromisoformat(
+                        str(result[15])).strftime('%Y-%m-%d'),
                     'hour': result[3],
                     'minute': result[4],
                     'timezone': result[5],
                     'type': result[7],
                     'repeat_enabled': bool(result[9]),
                     'repeat_minutes': result[10],
-                    'custom_times': result[6].split('|')[0].replace('CUSTOM_TIMES:', '') if result[6].startswith('CUSTOM_TIMES:') else None
+                    'custom_times': result[6].split('|')[0].replace('CUSTOM_TIMES:', '') if result[6].startswith(
+                        'CUSTOM_TIMES:') else None
                 }
             }
 
@@ -222,7 +230,7 @@ class NotificationEditView(discord.ui.View):
             json_str = json.dumps(embed_data)
             encoded_data = urllib.parse.quote(json_str)
             edit_url = f"https://wosland.com/notification/notification.php?data={encoded_data}"
-            
+
             embed = discord.Embed(
                 title="🔄 Notification Edit",
                 description=(
@@ -234,7 +242,7 @@ class NotificationEditView(discord.ui.View):
                 color=discord.Color.blue()
             )
             await interaction.response.edit_message(embed=embed, view=self)
-            
+
         except Exception as e:
             print(f"Error generating edit URL: {e}")
             await interaction.response.send_message(
@@ -258,13 +266,14 @@ class NotificationEditView(discord.ui.View):
                 ephemeral=True
             )
 
+
 class ChannelMentionSelectView(discord.ui.View):
     def __init__(self, editor_cog, notification_id, embed_data):
         super().__init__()
         self.editor_cog = editor_cog
         self.notification_id = notification_id
         self.embed_data = embed_data
-        
+
         self.channel_select = discord.ui.ChannelSelect(
             placeholder="Select channel...",
             channel_types=[
@@ -294,7 +303,7 @@ class ChannelMentionSelectView(discord.ui.View):
 
     async def channel_select_callback(self, interaction: discord.Interaction):
         self.selected_channel = self.channel_select.values[0]
-        
+
         view = MentionTypeView(self.editor_cog, self.notification_id, self.selected_channel, self.embed_data)
         embed = discord.Embed(
             title="👥 Tag Selection",
@@ -311,7 +320,7 @@ class ChannelMentionSelectView(discord.ui.View):
 
     async def skip_button_callback(self, interaction: discord.Interaction):
         success, message = await self.editor_cog.update_notification(
-            self.notification_id, 
+            self.notification_id,
             self.embed_data,
             skip_channel_mention=True
         )
@@ -328,6 +337,7 @@ class ChannelMentionSelectView(discord.ui.View):
                 color=discord.Color.red()
             )
         await interaction.response.edit_message(embed=embed, view=None)
+
 
 class MentionTypeView(discord.ui.View):
     def __init__(self, editor_cog, notification_id, channel, embed_data):
@@ -394,7 +404,7 @@ class MentionTypeView(discord.ui.View):
                     mention_type=mention_type,
                     skip_channel_mention=False
                 )
-                
+
                 if success:
                     embed = discord.Embed(
                         title="✅ Notification Updated",
@@ -468,6 +478,7 @@ class MentionTypeView(discord.ui.View):
             )
             await interaction.response.edit_message(embed=embed, view=None)
 
+
 class BearTrapEditor(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -476,7 +487,7 @@ class BearTrapEditor(commands.Cog):
         def __init__(self, cog):
             super().__init__(timeout=300)
             self.cog = cog
-            
+
             embed_data = {
                 'title': "Bear Trap Notification",
                 'description': "Get ready for Bear! Only %t remaining.",
@@ -497,7 +508,7 @@ class BearTrapEditor(commands.Cog):
             json_str = json.dumps(embed_data)
             encoded_data = urllib.parse.quote(json_str)
             self.edit_url = f"https://wosland.com/notification/notification.php?data={encoded_data}"
-            
+
             paste_button = discord.ui.Button(
                 label="Paste Embed",
                 style=discord.ButtonStyle.success,
@@ -535,7 +546,7 @@ class BearTrapEditor(commands.Cog):
             except Exception as e:
                 error_msg = f"[ERROR] Error in web setup: {str(e)}\nType: {type(e)}\nTrace: {traceback.format_exc()}"
                 print(error_msg)
-                
+
                 try:
                     if not interaction.response.is_done():
                         await interaction.response.send_message(
@@ -558,7 +569,8 @@ class BearTrapEditor(commands.Cog):
             print(f"Error decoding embed data: {e}")
             return None
 
-    async def update_notification(self, notification_id, embed_data, channel_id=None, mention_type=None, skip_channel_mention=False):
+    async def update_notification(self, notification_id, embed_data, channel_id=None, mention_type=None,
+                                  skip_channel_mention=False):
         try:
             bear_trap = self.bot.get_cog('BearTrap')
             if not bear_trap:
@@ -668,5 +680,6 @@ class BearTrapEditor(commands.Cog):
         )
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
+
 async def setup(bot):
-    await bot.add_cog(BearTrapEditor(bot)) 
+    await bot.add_cog(BearTrapEditor(bot))

@@ -4,6 +4,7 @@ import sqlite3
 from datetime import datetime
 from .alliance_member_operations import AllianceSelectView
 
+
 class Changes(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -12,7 +13,7 @@ class Changes(commands.Cog):
         self.conn = sqlite3.connect('db/changes.sqlite')
         self.cursor = self.conn.cursor()
         self._create_tables()
-        
+
         self.level_mapping = {
             31: "30-1", 32: "30-2", 33: "30-3", 34: "30-4",
             35: "FC 1", 36: "FC 1 - 1", 37: "FC 1 - 2", 38: "FC 1 - 3", 39: "FC 1 - 4",
@@ -63,7 +64,7 @@ class Changes(commands.Cog):
 
             view = HistoryView(self)
             await interaction.response.edit_message(embed=embed, view=view)
-            
+
         except Exception as e:
             if not any(error_code in str(e) for error_code in ["10062", "40060"]):
                 print(f"Show alliance history menu error: {e}")
@@ -88,23 +89,23 @@ class Changes(commands.Cog):
                 cursor = settings_db.cursor()
                 cursor.execute("SELECT is_initial FROM admin WHERE id = ?", (user_id,))
                 admin_result = cursor.fetchone()
-                
+
                 if not admin_result:
                     print(f"User {user_id} is not an admin")
                     return [], [], False
-                    
+
                 is_initial = admin_result[0]
-                
+
             if is_initial == 1:
                 with sqlite3.connect('db/alliance.sqlite') as alliance_db:
                     cursor = alliance_db.cursor()
                     cursor.execute("SELECT alliance_id, name FROM alliance_list ORDER BY name")
                     alliances = cursor.fetchall()
                     return alliances, [], True
-            
+
             server_alliances = []
             special_alliances = []
-            
+
             with sqlite3.connect('db/alliance.sqlite') as alliance_db:
                 cursor = alliance_db.cursor()
                 cursor.execute("""
@@ -114,7 +115,7 @@ class Changes(commands.Cog):
                     ORDER BY name
                 """, (guild_id,))
                 server_alliances = cursor.fetchall()
-            
+
             with sqlite3.connect('db/settings.sqlite') as settings_db:
                 cursor = settings_db.cursor()
                 cursor.execute("""
@@ -123,7 +124,7 @@ class Changes(commands.Cog):
                     WHERE admin = ?
                 """, (user_id,))
                 special_alliance_ids = cursor.fetchall()
-                
+
             if special_alliance_ids:
                 with sqlite3.connect('db/alliance.sqlite') as alliance_db:
                     cursor = alliance_db.cursor()
@@ -135,14 +136,14 @@ class Changes(commands.Cog):
                         ORDER BY name
                     """, [aid[0] for aid in special_alliance_ids])
                     special_alliances = cursor.fetchall()
-            
+
             all_alliances = list({(aid, name) for aid, name in (server_alliances + special_alliances)})
-            
+
             if not all_alliances and not special_alliances:
                 return [], [], False
-            
+
             return all_alliances, special_alliances, False
-                
+
         except Exception as e:
             print(f"Error in get_admin_alliances: {e}")
             return [], [], False
@@ -155,9 +156,9 @@ class Changes(commands.Cog):
                 WHERE fid = ? 
                 ORDER BY change_date DESC
             """, (fid,))
-            
+
             changes = self.cursor.fetchall()
-            
+
             if not changes:
                 await interaction.followup.send(
                     "No furnace changes found for this player.",
@@ -209,9 +210,9 @@ class Changes(commands.Cog):
                 WHERE fid = ? 
                 ORDER BY change_date DESC
             """, (fid,))
-            
+
             changes = self.cursor.fetchall()
-            
+
             if not changes:
                 await interaction.followup.send(
                     "No nickname changes found for this player.",
@@ -290,7 +291,7 @@ class Changes(commands.Cog):
             )
 
             view = MemberListViewNickname(self, members, alliance_name)
-            
+
             await interaction.response.edit_message(
                 embed=embed,
                 view=view
@@ -326,7 +327,7 @@ class Changes(commands.Cog):
                 AND change_date >= datetime('now', '-{} hours')
                 ORDER BY change_date DESC
             """.format(','.join('?' * len(members)), hours), tuple(members.keys()))
-            
+
             changes = self.cursor.fetchall()
 
             if not changes:
@@ -337,7 +338,7 @@ class Changes(commands.Cog):
                 return
 
             chunks = [changes[i:i + 25] for i in range(0, len(changes), 25)]
-            
+
             view = RecentChangesView(chunks, members, self.level_mapping, alliance_name, hours)
             await interaction.followup.send(embed=view.get_embed(), view=view)
 
@@ -371,7 +372,7 @@ class Changes(commands.Cog):
                 AND change_date >= datetime('now', '-{} hours')
                 ORDER BY change_date DESC
             """.format(','.join('?' * len(members)), hours), tuple(members.keys()))
-            
+
             changes = self.cursor.fetchall()
 
             if not changes:
@@ -382,7 +383,7 @@ class Changes(commands.Cog):
                 return
 
             chunks = [changes[i:i + 25] for i in range(0, len(changes), 25)]
-            
+
             view = RecentNicknameChangesView(chunks, members, alliance_name, hours)
             await interaction.followup.send(embed=view.get_embed(), view=view)
 
@@ -392,6 +393,7 @@ class Changes(commands.Cog):
                 "❌ An error occurred while showing recent changes.",
                 ephemeral=True
             )
+
 
 class HistoryView(discord.ui.View):
     def __init__(self, cog):
@@ -483,7 +485,7 @@ class HistoryView(discord.ui.View):
                         )
 
             view.callback = alliance_callback
-            
+
             await interaction.response.send_message(
                 embed=select_embed,
                 view=view,
@@ -522,7 +524,7 @@ class HistoryView(discord.ui.View):
                 alliance_name = cursor.fetchone()[0]
 
             view = MemberListView(self.cog, members, alliance_name)
-            
+
             embed = discord.Embed(
                 title=f"🔥 {alliance_name} - Member List",
                 description=(
@@ -632,7 +634,7 @@ class HistoryView(discord.ui.View):
                         )
 
             view.callback = alliance_callback
-            
+
             await interaction.response.send_message(
                 embed=select_embed,
                 view=view,
@@ -726,6 +728,7 @@ class HistoryView(discord.ui.View):
                 ephemeral=True
             )
 
+
 class MemberListView(discord.ui.View):
     def __init__(self, cog, members, alliance_name):
         super().__init__()
@@ -738,7 +741,7 @@ class MemberListView(discord.ui.View):
 
     def update_view(self):
         self.clear_items()
-        
+
         start_idx = self.current_page * 25
         end_idx = min(start_idx + 25, len(self.members))
         current_members = self.members[start_idx:end_idx]
@@ -900,7 +903,7 @@ class MemberListView(discord.ui.View):
 
     async def update_page(self, interaction: discord.Interaction):
         self.update_view()
-        
+
         embed = discord.Embed(
             title=f"🔥 {self.alliance_name} - Member List",
             description=(
@@ -914,6 +917,7 @@ class MemberListView(discord.ui.View):
         )
 
         await interaction.response.edit_message(embed=embed, view=self)
+
 
 class FIDSearchModal(discord.ui.Modal, title="Search by FID"):
     def __init__(self, cog):
@@ -933,7 +937,7 @@ class FIDSearchModal(discord.ui.Modal, title="Search by FID"):
             fid = int(self.fid.value)
             await interaction.response.defer()
             await self.cog.show_furnace_history(interaction, fid)
-                
+
         except ValueError:
             await interaction.response.send_message(
                 "❌ Invalid FID format. Please enter a valid number.",
@@ -952,6 +956,7 @@ class FIDSearchModal(discord.ui.Modal, title="Search by FID"):
                     ephemeral=True
                 )
 
+
 class MemberListViewNickname(discord.ui.View):
     def __init__(self, cog, members, alliance_name):
         super().__init__()
@@ -964,7 +969,7 @@ class MemberListViewNickname(discord.ui.View):
 
     def update_view(self):
         self.clear_items()
-        
+
         start_idx = self.current_page * 25
         end_idx = min(start_idx + 25, len(self.members))
         current_members = self.members[start_idx:end_idx]
@@ -1126,7 +1131,7 @@ class MemberListViewNickname(discord.ui.View):
 
     async def update_page(self, interaction: discord.Interaction):
         self.update_view()
-        
+
         embed = discord.Embed(
             title=f"📝 {self.alliance_name} - Member List",
             description=(
@@ -1140,6 +1145,7 @@ class MemberListViewNickname(discord.ui.View):
         )
 
         await interaction.response.edit_message(embed=embed, view=self)
+
 
 class FIDSearchModalNickname(discord.ui.Modal, title="Search by FID"):
     def __init__(self, cog):
@@ -1159,7 +1165,7 @@ class FIDSearchModalNickname(discord.ui.Modal, title="Search by FID"):
             fid = int(self.fid.value)
             await interaction.response.defer()
             await self.cog.show_nickname_history(interaction, fid)
-                
+
         except ValueError:
             await interaction.response.send_message(
                 "❌ Invalid FID format. Please enter a valid number.",
@@ -1177,6 +1183,7 @@ class FIDSearchModalNickname(discord.ui.Modal, title="Search by FID"):
                     "❌ An error occurred while searching for the player.",
                     ephemeral=True
                 )
+
 
 class CustomTimeModal(discord.ui.Modal, title="Custom Time Range"):
     def __init__(self, cog, alliance_name):
@@ -1201,9 +1208,9 @@ class CustomTimeModal(discord.ui.Modal, title="Custom Time Range"):
                     ephemeral=True
                 )
                 return
-            
+
             await self.cog.show_recent_nickname_changes(interaction, self.alliance_name, hours)
-                
+
         except ValueError:
             await interaction.response.send_message(
                 "❌ Please enter a valid number.",
@@ -1216,6 +1223,7 @@ class CustomTimeModal(discord.ui.Modal, title="Custom Time Range"):
                 ephemeral=True
             )
 
+
 class RecentChangesView(discord.ui.View):
     def __init__(self, chunks, members, level_mapping, alliance_name, hours):
         super().__init__()
@@ -1226,7 +1234,7 @@ class RecentChangesView(discord.ui.View):
         self.hours = hours
         self.current_page = 0
         self.total_pages = len(chunks)
-        
+
         self.update_buttons()
 
     def get_embed(self):
@@ -1272,6 +1280,7 @@ class RecentChangesView(discord.ui.View):
         self.update_buttons()
         await interaction.response.edit_message(embed=self.get_embed(), view=self)
 
+
 class RecentNicknameChangesView(discord.ui.View):
     def __init__(self, chunks, members, alliance_name, hours):
         super().__init__()
@@ -1281,7 +1290,7 @@ class RecentNicknameChangesView(discord.ui.View):
         self.hours = hours
         self.current_page = 0
         self.total_pages = len(chunks)
-        
+
         self.update_buttons()
 
     def get_embed(self):
@@ -1313,7 +1322,8 @@ class RecentNicknameChangesView(discord.ui.View):
         self.previous_button.disabled = self.current_page == 0
         self.next_button.disabled = self.current_page == self.total_pages - 1
 
-    @discord.ui.button(label="Previous", emoji="⬅️", style=discord.ButtonStyle.secondary, custom_id="previous_nick_recent")
+    @discord.ui.button(label="Previous", emoji="⬅️", style=discord.ButtonStyle.secondary,
+                       custom_id="previous_nick_recent")
     async def previous_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.current_page = max(0, self.current_page - 1)
         self.update_buttons()
@@ -1324,6 +1334,7 @@ class RecentNicknameChangesView(discord.ui.View):
         self.current_page = min(self.total_pages - 1, self.current_page + 1)
         self.update_buttons()
         await interaction.response.edit_message(embed=self.get_embed(), view=self)
+
 
 class CustomTimeModalNickname(discord.ui.Modal, title="Custom Time Range"):
     def __init__(self, cog, alliance_name):
@@ -1348,10 +1359,10 @@ class CustomTimeModalNickname(discord.ui.Modal, title="Custom Time Range"):
                     ephemeral=True
                 )
                 return
-            
+
             await interaction.response.defer()
             await self.cog.show_recent_nickname_changes(interaction, self.alliance_name, hours)
-                
+
         except ValueError:
             await interaction.response.send_message(
                 "❌ Please enter a valid number.",
@@ -1364,5 +1375,6 @@ class CustomTimeModalNickname(discord.ui.Modal, title="Custom Time Range"):
                 ephemeral=True
             )
 
+
 async def setup(bot):
-    await bot.add_cog(Changes(bot)) 
+    await bot.add_cog(Changes(bot))

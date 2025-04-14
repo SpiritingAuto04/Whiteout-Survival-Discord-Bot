@@ -4,6 +4,7 @@ from discord import app_commands, ui
 import sqlite3
 import os
 
+
 class AllianceSelect(ui.Select):
     def __init__(self, alliances):
         options = [
@@ -12,10 +13,12 @@ class AllianceSelect(ui.Select):
         ]
         super().__init__(placeholder="Select Alliance", options=options)
 
+
 class AllianceView(ui.View):
     def __init__(self, alliances):
         super().__init__()
         self.add_item(AllianceSelect(alliances))
+
 
 class DatabaseVersionSelect(ui.View):
     def __init__(self):
@@ -32,6 +35,7 @@ class DatabaseVersionSelect(ui.View):
         cog = self.bot.get_cog('DatabaseTransfer')
         await interaction.response.defer(ephemeral=True)
         await cog.olddatabase(interaction)
+
 
 class DatabaseTransfer(commands.Cog):
     def __init__(self, bot):
@@ -80,10 +84,10 @@ class DatabaseTransfer(commands.Cog):
         ]
 
         db_connections = {}
-        
+
         for source, table, destination in transfer_steps:
             destination_path = f'db/{destination}'
-            
+
             if source not in db_connections:
                 db_connections[source] = sqlite3.connect(source)
             if destination_path not in db_connections:
@@ -92,41 +96,57 @@ class DatabaseTransfer(commands.Cog):
             try:
                 source_conn = db_connections[source]
                 destination_conn = db_connections[destination_path]
-                
+
                 source_cursor = source_conn.cursor()
                 destination_cursor = destination_conn.cursor()
-                
+
                 source_cursor.execute(f"SELECT * FROM {table}")
                 rows = source_cursor.fetchall()
                 row_count = len(rows)
 
-                if table == "admin":
-                    for row in rows:
-                        destination_cursor.execute("INSERT OR REPLACE INTO admin (id, is_initial) VALUES (?, ?)", row)
-                elif table == "alliance_channels":
-                    destination_cursor.executemany("INSERT OR REPLACE INTO alliancesettings (alliance_id, channel_id) VALUES (?, ?)", rows)
-                elif table == "alliance_intervals":
-                    for alliance_id, interval in rows:
-                        destination_cursor.execute("UPDATE alliancesettings SET interval = ? WHERE alliance_id = ?", (interval, alliance_id))
-                elif table == "alliance_list":
-                    destination_cursor.executemany("INSERT OR REPLACE INTO alliance_list (alliance_id, name) VALUES (?, ?)", rows)
-                elif table == "botsettings":
-                    for row in rows:
-                        destination_cursor.execute("INSERT OR REPLACE INTO botsettings (id, channelid) VALUES (?, ?)", (row[0], row[1]))
-                elif table == "furnace_changes":
-                    destination_cursor.executemany("INSERT OR REPLACE INTO furnace_changes (id, fid, old_furnace_lv, new_furnace_lv, change_date) VALUES (?, ?, ?, ?, ?)", rows)
-                elif table == "nickname_changes":
-                    destination_cursor.executemany("INSERT OR REPLACE INTO nickname_changes (id, fid, old_nickname, new_nickname, change_date) VALUES (?, ?, ?, ?, ?)", rows)
-                elif table == "gift_codes":
-                    destination_cursor.executemany("INSERT OR REPLACE INTO gift_codes (giftcode, date) VALUES (?, ?)", rows)
-                elif table == "user_giftcodes":
-                    destination_cursor.executemany("INSERT OR REPLACE INTO user_giftcodes (fid, giftcode, status) VALUES (?, ?, ?)", rows)
-                elif table == "users":
-                    reorganized_rows = []
-                    for row in rows:
-                        reorganized_row = (row[0], row[1], row[2], row[4], row[5], row[3])
-                        reorganized_rows.append(reorganized_row)
-                    destination_cursor.executemany("INSERT OR REPLACE INTO users (fid, nickname, furnace_lv, kid, stove_lv_content, alliance) VALUES (?, ?, ?, ?, ?, ?)", reorganized_rows)
+                match table:
+                    case "admin":
+                        for row in rows:
+                            destination_cursor.execute("INSERT OR REPLACE INTO admin (id, is_initial) VALUES (?, ?)",
+                                                       row)
+                    case "alliance_channels":
+                        destination_cursor.executemany(
+                            "INSERT OR REPLACE INTO alliancesettings (alliance_id, channel_id) VALUES (?, ?)", rows)
+                    case "alliance_intervals":
+                        for alliance_id, interval in rows:
+                            destination_cursor.execute("UPDATE alliancesettings SET interval = ? WHERE alliance_id = ?",
+                                                       (interval, alliance_id))
+                    case "alliance_list":
+                        destination_cursor.executemany(
+                            "INSERT OR REPLACE INTO alliance_list (alliance_id, name) VALUES (?, ?)", rows)
+                    case "botsettings":
+                        for row in rows:
+                            destination_cursor.execute(
+                                "INSERT OR REPLACE INTO botsettings (id, channelid) VALUES (?, ?)",
+                                (row[0], row[1]))
+                    case "furnace_changes":
+                        destination_cursor.executemany(
+                            "INSERT OR REPLACE INTO furnace_changes (id, fid, old_furnace_lv, new_furnace_lv, change_date) VALUES (?, ?, ?, ?, ?)",
+                            rows)
+                    case "nickname_changes":
+                        destination_cursor.executemany(
+                            "INSERT OR REPLACE INTO nickname_changes (id, fid, old_nickname, new_nickname, change_date) VALUES (?, ?, ?, ?, ?)",
+                            rows)
+                    case "gift_codes":
+                        destination_cursor.executemany(
+                            "INSERT OR REPLACE INTO gift_codes (giftcode, date) VALUES (?, ?)",
+                            rows)
+                    case "user_giftcodes":
+                        destination_cursor.executemany(
+                            "INSERT OR REPLACE INTO user_giftcodes (fid, giftcode, status) VALUES (?, ?, ?)", rows)
+                    case "users":
+                        reorganized_rows = []
+                        for row in rows:
+                            reorganized_row = (row[0], row[1], row[2], row[4], row[5], row[3])
+                            reorganized_rows.append(reorganized_row)
+                        destination_cursor.executemany(
+                            "INSERT OR REPLACE INTO users (fid, nickname, furnace_lv, kid, stove_lv_content, alliance) VALUES (?, ?, ?, ?, ?, ?)",
+                            reorganized_rows)
 
                 embed.add_field(name=f"Step {table}", value=f"Transferred {row_count} rows ✔", inline=False)
                 await message.edit(embed=embed)
@@ -135,7 +155,7 @@ class DatabaseTransfer(commands.Cog):
             except Exception as e:
                 embed.add_field(name=f"Error at {table}", value=f"{str(e)}", inline=False)
                 await message.edit(embed=embed)
-            
+
         for conn in db_connections.values():
             conn.close()
 
@@ -156,10 +176,10 @@ class DatabaseTransfer(commands.Cog):
         ]
 
         db_connections = {}
-        
+
         for source, table, destination in transfer_steps:
             destination_path = f'db/{destination}'
-            
+
             if source not in db_connections:
                 db_connections[source] = sqlite3.connect(source)
             if destination_path not in db_connections:
@@ -168,15 +188,38 @@ class DatabaseTransfer(commands.Cog):
             try:
                 source_conn = db_connections[source]
                 destination_conn = db_connections[destination_path]
-                
+
                 source_cursor = source_conn.cursor()
                 destination_cursor = destination_conn.cursor()
-                
+
                 source_cursor.execute(f"SELECT * FROM {table}")
                 rows = source_cursor.fetchall()
                 row_count = len(rows)
 
-                if table == "users":
+                match table:
+                    case "users":
+                        for row in rows:
+                            fid, nickname, furnace_lv = row
+                            destination_cursor.execute(
+                                "INSERT OR REPLACE INTO users (fid, nickname, furnace_lv, alliance) VALUES (?, ?, ?, ?)",
+                                (fid, nickname, furnace_lv, alliance_id)
+                            )
+                    case "furnace_changes":
+                        destination_cursor.executemany(
+                            "INSERT OR REPLACE INTO furnace_changes (id, fid, old_furnace_lv, new_furnace_lv, change_date) VALUES (?, ?, ?, ?, ?)",
+                            rows)
+                    case "nickname_changes":
+                        destination_cursor.executemany(
+                            "INSERT OR REPLACE INTO nickname_changes (id, fid, old_nickname, new_nickname, change_date) VALUES (?, ?, ?, ?, ?)",
+                            rows)
+                    case "gift_codes":
+                        destination_cursor.executemany(
+                            "INSERT OR REPLACE INTO gift_codes (giftcode, date) VALUES (?, ?)", rows)
+                    case "user_giftcodes":
+                        destination_cursor.executemany(
+                            "INSERT OR REPLACE INTO user_giftcodes (fid, giftcode, status) VALUES (?, ?, ?)", rows)
+
+                '''if table == "users":
                     for row in rows:
                         fid, nickname, furnace_lv = row
                         destination_cursor.execute(
@@ -185,13 +228,19 @@ class DatabaseTransfer(commands.Cog):
                         )
                 else:
                     if table == "furnace_changes":
-                        destination_cursor.executemany("INSERT OR REPLACE INTO furnace_changes (id, fid, old_furnace_lv, new_furnace_lv, change_date) VALUES (?, ?, ?, ?, ?)", rows)
+                        destination_cursor.executemany(
+                            "INSERT OR REPLACE INTO furnace_changes (id, fid, old_furnace_lv, new_furnace_lv, change_date) VALUES (?, ?, ?, ?, ?)",
+                            rows)
                     elif table == "nickname_changes":
-                        destination_cursor.executemany("INSERT OR REPLACE INTO nickname_changes (id, fid, old_nickname, new_nickname, change_date) VALUES (?, ?, ?, ?, ?)", rows)
+                        destination_cursor.executemany(
+                            "INSERT OR REPLACE INTO nickname_changes (id, fid, old_nickname, new_nickname, change_date) VALUES (?, ?, ?, ?, ?)",
+                            rows)
                     elif table == "gift_codes":
-                        destination_cursor.executemany("INSERT OR REPLACE INTO gift_codes (giftcode, date) VALUES (?, ?)", rows)
+                        destination_cursor.executemany(
+                            "INSERT OR REPLACE INTO gift_codes (giftcode, date) VALUES (?, ?)", rows)
                     elif table == "user_giftcodes":
-                        destination_cursor.executemany("INSERT OR REPLACE INTO user_giftcodes (fid, giftcode, status) VALUES (?, ?, ?)", rows)
+                        destination_cursor.executemany(
+                            "INSERT OR REPLACE INTO user_giftcodes (fid, giftcode, status) VALUES (?, ?, ?)", rows)'''
 
                 embed.add_field(name=f"Step {table}", value=f"Transferred {row_count} rows ✔", inline=False)
                 await message.edit(embed=embed)
@@ -200,7 +249,7 @@ class DatabaseTransfer(commands.Cog):
             except Exception as e:
                 embed.add_field(name=f"Error at {table}", value=f"{str(e)}", inline=False)
                 await message.edit(embed=embed)
-            
+
         for conn in db_connections.values():
             conn.close()
 
@@ -210,7 +259,7 @@ class DatabaseTransfer(commands.Cog):
 
     async def transfer_v2_database(self, interaction: discord.Interaction):
         alliances = await self.check_alliances()
-        
+
         if not alliances:
             embed = discord.Embed(
                 title="Database Transfer (V2)",
@@ -226,14 +275,15 @@ class DatabaseTransfer(commands.Cog):
             color=discord.Color.blue()
         )
         view = AllianceView(alliances)
-        
+
         async def alliance_callback(interaction: discord.Interaction):
             await interaction.response.defer(ephemeral=True)
             alliance_id = int(view.children[0].values[0])
             await self.transfer_v2_data(interaction, alliance_id)
-        
+
         view.children[0].callback = alliance_callback
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+
 
 async def setup(bot):
     await bot.add_cog(DatabaseTransfer(bot))

@@ -7,13 +7,14 @@ import time
 import asyncio
 import sqlite3
 
+
 class WCommand(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.conn = sqlite3.connect('db/changes.sqlite')
         self.c = self.conn.cursor()
         self.SECRET = "tB87#kPtkxqOS2"
-        
+
         self.level_mapping = {
             31: "30-1", 32: "30-2", 33: "30-3", 34: "30-4",
             35: "FC 1", 36: "FC 1 - 1", 37: "FC 1 - 2", 38: "FC 1 - 3", 39: "FC 1 - 4",
@@ -45,7 +46,7 @@ class WCommand(commands.Cog):
                 users = cursor.fetchall()
 
             choices = [
-                discord.app_commands.Choice(name=f"{nickname} ({fid})", value=str(fid)) 
+                discord.app_commands.Choice(name=f"{nickname} ({fid})", value=str(fid))
                 for fid, nickname in users
             ]
 
@@ -55,16 +56,15 @@ class WCommand(commands.Cog):
                 filtered_choices = choices[:25]
 
             return filtered_choices
-        
+
         except Exception as e:
             print(f"Autocomplete could not be loaded: {e}")
             return []
 
-
     async def fetch_user_info(self, interaction: discord.Interaction, fid: str):
         try:
             await interaction.response.defer(thinking=True)
-            
+
             current_time = int(time.time() * 1000)
             form = f"fid={fid}&time={current_time}"
             sign = hashlib.md5((form + self.SECRET).encode('utf-8')).hexdigest()
@@ -98,16 +98,17 @@ class WCommand(commands.Cog):
 
                             user_info = None
                             alliance_info = None
-                            
+
                             with sqlite3.connect('db/users.sqlite') as users_db:
                                 cursor = users_db.cursor()
                                 cursor.execute("SELECT *, alliance FROM users WHERE fid=?", (fid_value,))
                                 user_info = cursor.fetchone()
-                                
+
                                 if user_info and user_info[-1]:
                                     with sqlite3.connect('db/alliance.sqlite') as alliance_db:
                                         cursor = alliance_db.cursor()
-                                        cursor.execute("SELECT name FROM alliance_list WHERE alliance_id=?", (user_info[-1],))
+                                        cursor.execute("SELECT name FROM alliance_list WHERE alliance_id=?",
+                                                       (user_info[-1],))
                                         alliance_info = cursor.fetchone()
 
                             embed = discord.Embed(
@@ -134,18 +135,20 @@ class WCommand(commands.Cog):
                                 embed.set_thumbnail(url=stove_lv_content)
 
                             await interaction.followup.send(embed=embed)
-                            return 
+                            return
 
                         elif response.status == 429:
                             if attempt < max_retries - 1:
-                                await interaction.followup.send("API limit reached, your result will be displayed automatically shortly...")
+                                await interaction.followup.send(
+                                    "API limit reached, your result will be displayed automatically shortly...")
                                 await asyncio.sleep(retry_delay)
-            await interaction.followup.send(f"User with ID {fid} not found or an error occurred after multiple attempts.")
-            
+            await interaction.followup.send(
+                f"User with ID {fid} not found or an error occurred after multiple attempts.")
+
         except Exception as e:
             print(f"An error occurred: {e}")
             await interaction.followup.send("An error occurred while fetching user info.")
 
 
 async def setup(bot):
-    await bot.add_cog(WCommand(bot))
+    await bot.add_cog(WCommand(bot))
