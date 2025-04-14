@@ -422,8 +422,8 @@ if __name__ == "__main__":
 
         while True:
             try:
-                await bot.change_presence(activity=choice(custom_statuses))
-                print("[MONITOR] Changed Presence")
+                presence = await bot.change_presence(activity=choice(custom_statuses))
+                print(f"[MONITOR] Changed Presence to {presence}")
             except Exception as e:
                 print(f"[MONITOR] Failed to change presence. Below is error:\n{e}")
 
