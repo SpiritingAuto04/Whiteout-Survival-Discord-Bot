@@ -11,13 +11,17 @@ cogs/olddb.py = V4.2
 cogs/other_features.py = V4.3
 cogs/support_operations.py = V4.0
 cogs/w.py = V4.0
-cogs/wel.py = V4.1
+cogs/wel.py = V4.2
 cogs/control.py = V4.2
 cogs/bear_trap.py = V4.5
 cogs/id_channel.py = V4.0
 cogs/backup_operations.py = V4.1
 cogs/gift_operationsapi.py = V4.2
 cogs/bear_trap_editor.py = V4.1
+cogs/verify.py = V1.0
 
 Updated Info;
 - Increased the number of retries from 5 to 20 when redeeming a gift code for one person (after 5 attempts, it was registering as Failed, now it will try 20 times)
+- Refactored and optimised bot code
+- Introduced Role ID optimisation to where it can handle multiple servers with multiple alliances
+- Added a Role ID command to learn the ID of a role
