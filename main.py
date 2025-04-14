@@ -355,7 +355,7 @@ if __name__ == "__main__":
     create_tables()
     setup_version_table()
 
-    '''async def load_cogs():
+    async def load_cogs():
         await bot.load_extension("cogs.olddb")
         await bot.load_extension("cogs.control")
         await bot.load_extension("cogs.alliance")
@@ -372,10 +372,10 @@ if __name__ == "__main__":
         await bot.load_extension("cogs.id_channel")
         await bot.load_extension("cogs.backup_operations")
         await bot.load_extension("cogs.bear_trap_editor")
-        await bot.load_extension("cogs.verify")'''
+        await bot.load_extension("cogs.verify")
 
 
-    async def load_cogs():
+    """async def load_cogs():
         '''conn = sqlite3.connect("db/cogs.sqlite")
         cursor = conn.cursor()
 
@@ -393,7 +393,7 @@ if __name__ == "__main__":
                         else:
                             pass
                 except Exception as e:
-                    print(f"Exception below: \n{e}")
+                    print(f"Exception below: \n{e}")"""
 
 
     @bot.event
