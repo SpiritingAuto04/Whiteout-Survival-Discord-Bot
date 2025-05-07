@@ -5,7 +5,8 @@ cogs/alliance.py = V4.3
 cogs/alliance_member_operations.py = V4.4
 cogs/bot_operations.py = V4.3
 cogs/changes.py = V4.0
-cogs/gift_operations.py = V4.8
+cogs/gift_operations.py = V4.9
+cogs/gift_captchasolver.py = V1.0
 cogs/logsystem.py = V4.1
 cogs/olddb.py = V4.2
 cogs/other_features.py = V4.3
@@ -19,10 +20,8 @@ cogs/backup_operations.py = V4.1
 cogs/gift_operationsapi.py = V4.2
 cogs/bear_trap_editor.py = V4.1
 cogs/verify.py = V1.0
+cogs/misc_commands.py = V1.0
 
 Updated Info;
-- Increased the number of retries from 5 to 20 when redeeming a gift code for one person (after 5 attempts, it was registering as Failed, now it will try 20 times)
-- Refactored and optimised bot code
-- Introduced Role ID optimisation to where it can handle multiple servers with multiple alliances
-- Added a Role ID command to learn the ID of a role
-- Added several custom statuses with one linking to wosland as a tribute to the original developer this is based off
+- DDDDOSR added for captcha solving
+- Added a misc command to get state creation date

@@ -808,4 +808,4 @@ class IDChannelView(discord.ui.View):
 
 
 async def setup(bot):
-    await bot.add_cog(IDChannel(bot))
+    await bot.add_cog(IDChannel(bot))

@@ -2609,4 +2609,4 @@ class ImportEmbedModal(discord.ui.Modal):
 
 
 async def setup(bot):
-    await bot.add_cog(BearTrap(bot))
+    await bot.add_cog(BearTrap(bot))
